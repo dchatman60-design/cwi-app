@@ -16,6 +16,7 @@ const ClientDetail = lazy(() => import('./pages/Clients/ClientDetail'))
 const TaskList = lazy(() => import('./pages/Tasks/TaskList'))
 const TaskDetail = lazy(() => import('./pages/Tasks/TaskDetail'))
 const UserList = lazy(() => import('./pages/Admin/UserList'))
+const MeasureCard = lazy(() => import('./pages/Drawing/MeasureCard'))
 
 function FullScreenSpinner() {
   return (
@@ -77,6 +78,7 @@ export default function App() {
           <Route path="clients/:id" element={<ClientDetail />} />
           <Route path="tasks" element={<TaskList />} />
           <Route path="tasks/:id" element={<TaskDetail />} />
+          <Route path="measure-card" element={<MeasureCard />} />
           <Route
             path="admin/users"
             element={

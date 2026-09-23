@@ -40,8 +40,8 @@ export function buildDiagramSvg({ job, measurements, date = new Date() }) {
   const find = (parts, pattern) =>
     confirmed.find((m) => parts.includes(m.component) && pattern.test(m.dimension || ''))
 
-  const width = find(['head_jam', 'threshold'], /width|length|span|opening/i)
-  const height = find(['side_jam_left', 'side_jam_right'], /height|length/i)
+  const width = find(['opening', 'head_jam', 'threshold'], /width|length|span|opening/i)
+  const height = find(['opening', 'side_jam_left', 'side_jam_right'], /height|length/i)
   const proportional = Boolean(width && height && width.unit === height.unit)
   const ratio = proportional
     ? Math.min(3.2, Math.max(1.2, Number(height.value_confirmed) / Number(width.value_confirmed)))

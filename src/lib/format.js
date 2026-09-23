@@ -78,3 +78,9 @@ export function trimNumber(n) {
 export function inchesToBillableFeet(inches) {
   return Math.ceil((Number(inches) / 12) * 2) / 2
 }
+
+/** A ± value rounded UP to the next 1/16", e.g. 0.2 → '±1/4"'. */
+export function formatPlusMinus(plusMinus) {
+  const rounded = Math.max(1 / 16, Math.ceil(plusMinus * 16) / 16)
+  return `±${formatMeasurement(rounded)}`
+}

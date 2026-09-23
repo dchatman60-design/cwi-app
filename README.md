@@ -32,7 +32,8 @@ Mobile web app (PWA) for Custom Weatherstrip, Inc. — React + Vite + Tailwind, 
    | `CRON_SECRET` | server only | Any long random string, e.g. `openssl rand -hex 32` |
 
    Never give a secret a `VITE_` prefix — Vite ships every `VITE_` variable to the browser.
-4. **Reminder schedule** — after deploying, run [`supabase/reminder-schedule.sql`](supabase/reminder-schedule.sql) with your `CRON_SECRET` pasted in. It calls `/api/send-reminders` every 5 minutes. (Vercel's Hobby plan only allows daily cron jobs; on Vercel Pro you could use a `crons` entry in `vercel.json` instead.)
+4. **Clients** — to load the Book of Business, run `supabase/private/clients-seed.sql` in the SQL Editor. That folder is git-ignored because it holds customer contact details; keep it out of GitHub.
+5. **Reminder schedule** — after deploying, run [`supabase/reminder-schedule.sql`](supabase/reminder-schedule.sql) with your `CRON_SECRET` pasted in. It calls `/api/send-reminders` every 5 minutes. (Vercel's Hobby plan only allows daily cron jobs; on Vercel Pro you could use a `crons` entry in `vercel.json` instead.)
 
 ## Local development
 
@@ -46,6 +47,7 @@ npm run dev
 ## Architecture notes
 
 - **Three photo sets, never mixed.** All drawing uploads go through `uploadLayerFile()` in `src/lib/supabase.js`, which maps layer 1 → `measurement-photos`, 2 → `annotation-photos`, 3 → `diagrams`. Storage policies allow upload and read only — Layer 1 photos can't be overwritten or deleted.
+- **Measuring (Layer 1)** defaults to *Trace with card*: one photo shows the opening plus a reference card taped flat beside it (print one at `/measure-card` — 4 targets exactly 7 × 9.5 in apart). The opening's 4 corners correct the camera's perspective and the card sets the scale (`src/pages/Drawing/homography.js`), so each value comes with a ± estimate. The opening is treated as a rectangle — check diagonals with a tape. *AI read* (GPT-4o) is still available and is told the card's size.
 - **Layer 3 diagrams are drawn in code** (`src/pages/Drawing/diagram.js`) from confirmed measurements and saved as PNG, so every dimension on the drawing is exactly what was confirmed.
 - **AI keys stay server-side.** The browser calls `/api/extract-measurements`, which checks the Supabase session and calls GPT-4o.
 - **Offline tasks** are saved to IndexedDB with their final ID and synced on reconnect; their reminders go out once synced.

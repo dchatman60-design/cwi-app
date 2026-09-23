@@ -83,7 +83,7 @@ export async function POST(request) {
     return json({ error: 'Invalid request body.' }, 400)
   }
 
-  const { image, component } = body ?? {}
+  const { image, component, reference } = body ?? {}
   if (typeof image !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/.test(image)) {
     return json({ error: 'Expected a JPEG, PNG, or WebP image.' }, 400)
   }
@@ -95,6 +95,11 @@ export async function POST(request) {
     typeof component === 'string' && component.trim()
       ? component.trim().slice(0, 100)
       : 'not specified'
+
+  const referenceNote =
+    typeof reference === 'string' && reference.trim()
+      ? `\n${reference.trim().slice(0, 300)} Use it to calibrate every measurement.`
+      : ''
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -109,7 +114,7 @@ export async function POST(request) {
         {
           role: 'user',
           content: [
-            { type: 'text', text: `Component being photographed: ${componentHint}` },
+            { type: 'text', text: `Component being photographed: ${componentHint}${referenceNote}` },
             { type: 'image_url', image_url: { url: image, detail: 'high' } },
           ],
         },
