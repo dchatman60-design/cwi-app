@@ -3,7 +3,7 @@
 // label is exactly what Mike confirmed.
 
 import { formatMeasurement } from '../../lib/format'
-import { partLabel, sortByPart } from './measurementParts'
+import { hasValue, partLabel, sortByPart } from './measurementParts'
 
 export const DIAGRAM_WIDTH = 1600
 export const DIAGRAM_HEIGHT = 1100
@@ -36,9 +36,10 @@ function balloon(x, y, n) {
 }
 
 export function buildDiagramSvg({ job, measurements, date = new Date() }) {
-  const confirmed = sortByPart(measurements.filter((m) => m.value_confirmed !== null && m.value_confirmed !== undefined))
+  // Every confirmed entry goes in the schedule; only numbers drive the drawing
+  const confirmed = sortByPart(measurements.filter((m) => hasValue(m) || m.note))
   const find = (parts, pattern) =>
-    confirmed.find((m) => parts.includes(m.component) && pattern.test(m.dimension || ''))
+    confirmed.find((m) => hasValue(m) && parts.includes(m.component) && pattern.test(m.dimension || ''))
 
   const width = find(['opening', 'head_jam', 'threshold'], /width|length|span|opening/i)
   const height = find(['opening', 'side_jam_left', 'side_jam_right'], /height|length/i)
@@ -115,6 +116,11 @@ export function buildDiagramSvg({ job, measurements, date = new Date() }) {
     threshold: [fx + frameW * 0.5, fy + frameH + 7],
     doorstop: [fx + 30, fy + frameH * 0.2],
     sweep: [fx + frameW * 0.28, fy + frameH - 10],
+    door_bottom: [fx + frameW * 0.72, fy + frameH - 10],
+    seal: [fx + frameW - 14, fy + frameH * 0.66],
+    v_seal: [fx + 14, fy + frameH * 0.66],
+    t_astragal: [fx + frameW * 0.5, fy + frameH * 0.4],
+    surface_bolts: [fx + frameW - 30, fy + 34],
   }
   const measuredParts = [...new Set(confirmed.map((m) => m.component))]
   const numberFor = Object.fromEntries(measuredParts.map((p, i) => [p, i + 1]))
@@ -143,8 +149,9 @@ export function buildDiagramSvg({ job, measurements, date = new Date() }) {
     if (i % 2) table.push(`<rect x="${tx}" y="${ty}" width="${tw}" height="${rowH}" fill="#f1f5f9"/>`)
     table.push(text(tx + 14, ty + 24, numberFor[m.component], { size: 18, weight: 700, fill: ACCENT }))
     table.push(text(tx + 60, ty + 24, clip(partLabel(m.component), 22), { size: 18 }))
-    table.push(text(tx + 300, ty + 24, clip(m.dimension || '—', 22), { size: 18 }))
-    table.push(text(tx + tw - 14, ty + 24, formatMeasurement(m.value_confirmed, m.unit), { size: 18, weight: 700, anchor: 'end' }))
+    const detail = [m.dimension, m.note].filter(Boolean).join(' · ') || '—'
+    table.push(text(tx + 300, ty + 24, clip(detail, 22), { size: 18 }))
+    table.push(text(tx + tw - 14, ty + 24, hasValue(m) ? formatMeasurement(m.value_confirmed, m.unit) : '—', { size: 18, weight: 700, anchor: 'end' }))
     ty += rowH
   })
   if (confirmed.length > maxRows) {

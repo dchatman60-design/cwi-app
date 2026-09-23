@@ -7,21 +7,21 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertIcon, CameraIcon, PlusIcon, TrashIcon } from '../../components/icons'
 import SignedImage from '../../components/SignedImage'
-import { Badge, Button, Card, EmptyState, ErrorMessage, Field, inputClass, Segmented, Spinner } from '../../components/ui'
-import { formatMeasurement, formatPlusMinus, trimNumber } from '../../lib/format'
+import { Badge, Button, Card, EmptyState, ErrorMessage, Field, inputClass, Segmented, Sheet, Spinner } from '../../components/ui'
+import { formatMeasurement, formatPlusMinus } from '../../lib/format'
 import { extractMeasurements } from '../../lib/openai'
 import { supabase, uploadLayerFile } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { useOnlineStatus } from '../../lib/useOnlineStatus'
 import { must, useQuery } from '../../lib/useQuery'
 import { accuracyLevel } from './homography'
-import { MEASUREMENT_PARTS, partLabel, sortByPart } from './measurementParts'
+import MeasurementFields from './MeasurementFields'
+import { hasValue, MEASUREMENT_PARTS, partLabel, sortByPart, splitValue, toMeasurementRow, UNITS } from './measurementParts'
 import ReferencePicker from './ReferencePicker'
 import { describeReference, loadReference, resolveReference, saveReference } from './referenceCards'
 import TraceMeasure from './TraceMeasure'
 
 const LOW_CONFIDENCE = 0.7
-const UNITS = ['in', 'ft', 'mm', 'cm']
 const METHOD_KEY = 'cwi:capture-method'
 const METHODS = [
   { value: 'trace', label: 'Trace with card' },
@@ -47,7 +47,9 @@ const newRow = (fields = {}) => ({
   dimension: '',
   extracted: null,
   confirmed: '',
+  fraction: 0,
   unit: 'in',
+  note: '',
   confidence: null,
   plusMinus: null,
   source: 'manual', // manual | ai | trace
@@ -164,7 +166,7 @@ function CaptureSession({ jobId, onDone, onCancel }) {
           component: part,
           dimension: m.dimension,
           extracted: m.value,
-          confirmed: trimNumber(m.value),
+          ...splitValue(m.value, UNITS.includes(m.unit) ? m.unit : 'in'),
           unit: UNITS.includes(m.unit) ? m.unit : 'in',
           confidence: m.confidence,
           source: 'ai',
@@ -177,6 +179,8 @@ function CaptureSession({ jobId, onDone, onCancel }) {
     setRows(extracted.length ? extracted : [newRow({ component: part })])
     setStage('review')
   }
+
+  const isBlank = (r) => r.source === 'manual' && !r.dimension.trim() && r.confirmed === '' && !r.fraction && !r.note.trim()
 
   async function finishTracing(traced) {
     try {
@@ -191,14 +195,14 @@ function CaptureSession({ jobId, onDone, onCancel }) {
         component: t.component,
         dimension: t.dimension,
         extracted: Math.round(t.value * 1000) / 1000,
-        confirmed: trimNumber(roundTo16th(t.value)),
+        ...splitValue(roundTo16th(t.value), 'in'),
         plusMinus: t.plusMinus,
         source: 'trace',
       }),
     )
     // Replace earlier traced values and blank manual rows; keep AI reads
     setRows((list) => [
-      ...list.filter((r) => r.source === 'ai' || (r.source === 'manual' && (r.dimension || r.confirmed !== ''))),
+      ...list.filter((r) => r.source === 'ai' || (r.source === 'manual' && !isBlank(r))),
       ...tracedRows,
     ])
     setStage('review')
@@ -206,31 +210,29 @@ function CaptureSession({ jobId, onDone, onCancel }) {
 
   const updateRow = (key, patch) => setRows((list) => list.map((r) => (r.key === key ? { ...r, ...patch } : r)))
 
+
   async function save() {
-    const toSave = rows.filter(
-      (r) => r.include && r.dimension.trim() && r.confirmed !== '' && Number.isFinite(Number(r.confirmed)),
-    )
-    if (!toSave.length) return setError('Enter at least one measurement with a name and a number.')
+    const prepared = rows.filter((r) => r.include && !isBlank(r)).map((r) => ({ r, ...toMeasurementRow(r) }))
+    const invalid = prepared.find((p) => p.error)
+    if (invalid) return setError(invalid.error)
+    if (!prepared.length) return setError('Enter at least one value or note.')
 
     setSaving(true)
     setError(null)
     try {
       must(
         await supabase.from('measurements').insert(
-          toSave.map((r) => ({
+          prepared.map(({ r, row }) => ({
+            ...row,
             job_id: jobId,
-            component: r.component,
-            dimension: r.dimension.trim(),
             value_extracted: r.extracted,
-            value_confirmed: Number(r.confirmed),
-            unit: r.unit,
             cv_confidence: r.confidence,
             photo_url: photoPath,
             confirmed_by_mike: true,
           })),
         ),
       )
-      toast(`Saved ${toSave.length} measurement${toSave.length === 1 ? '' : 's'}`)
+      toast(`Saved ${prepared.length} measurement${prepared.length === 1 ? '' : 's'}`)
       onDone()
     } catch (err) {
       setError(err)
@@ -338,20 +340,9 @@ function CaptureSession({ jobId, onDone, onCancel }) {
               (row.source === 'trace' && accuracyLevel(row.plusMinus, row.extracted) === 'poor')
             return (
               <Card key={row.key} className={`space-y-3 p-3 ${flagged ? 'border-amber-400 bg-amber-50' : ''}`}>
-                <div className="flex items-center gap-2">
-                  <select
-                    className={`${inputClass} flex-1`}
-                    value={row.component}
-                    onChange={(e) => updateRow(row.key, { component: e.target.value })}
-                    aria-label="Component"
-                  >
-                    {MEASUREMENT_PARTS.map((p) => (
-                      <option key={p.key} value={p.key}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
-                  <label className="flex min-h-11 items-center gap-1.5 text-sm text-slate-600">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate font-semibold">{partLabel(row.component)}</span>
+                  <label className="flex min-h-11 shrink-0 items-center gap-1.5 text-sm text-slate-600">
                     <input
                       type="checkbox"
                       className="size-5 accent-blue-700"
@@ -361,33 +352,7 @@ function CaptureSession({ jobId, onDone, onCancel }) {
                     Save
                   </label>
                 </div>
-                <input
-                  className={inputClass}
-                  placeholder="Dimension (e.g. width)"
-                  value={row.dimension}
-                  onChange={(e) => updateRow(row.key, { dimension: e.target.value })}
-                  aria-label="Dimension"
-                />
-                <div className="flex gap-2">
-                  <input
-                    className={`${inputClass} flex-1 text-lg font-semibold`}
-                    inputMode="decimal"
-                    placeholder="Value"
-                    value={row.confirmed}
-                    onChange={(e) => updateRow(row.key, { confirmed: e.target.value })}
-                    aria-label="Confirmed value"
-                  />
-                  <select
-                    className={`${inputClass} w-24`}
-                    value={row.unit}
-                    onChange={(e) => updateRow(row.key, { unit: e.target.value })}
-                    aria-label="Unit"
-                  >
-                    {UNITS.map((u) => (
-                      <option key={u}>{u}</option>
-                    ))}
-                  </select>
-                </div>
+                <MeasurementFields value={row} onChange={(patch) => updateRow(row.key, patch)} idPrefix={`row-${row.key}`} />
                 <RowInfo row={row} onRemove={() => setRows((list) => list.filter((r) => r.key !== row.key))} />
               </Card>
             )
@@ -426,10 +391,65 @@ function CaptureSession({ jobId, onDone, onCancel }) {
   )
 }
 
+/** Add or edit one entry by hand — values, types, conditions. No photo needed. */
+function MeasurementForm({ jobId, measurement, onClose, onSaved }) {
+  const [fields, setFields] = useState(() => ({
+    component: measurement?.component ?? 'head_jam',
+    dimension: measurement?.dimension ?? '',
+    ...splitValue(measurement && hasValue(measurement) ? measurement.value_confirmed : null, measurement?.unit || 'in'),
+    unit: measurement?.unit || 'in',
+    note: measurement?.note ?? '',
+  }))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function save() {
+    const { row, error: invalid } = toMeasurementRow(fields)
+    if (invalid) return setError(invalid)
+    setSaving(true)
+    setError(null)
+    try {
+      if (measurement) {
+        const patch = { ...row, confirmed_by_mike: true }
+        if (!row.note && measurement.note) patch.note = null
+        must(await supabase.from('measurements').update(patch).eq('id', measurement.id))
+      } else {
+        must(await supabase.from('measurements').insert({ ...row, job_id: jobId, confirmed_by_mike: true }))
+      }
+      toast(measurement ? 'Entry updated' : 'Entry added')
+      onSaved()
+      onClose()
+    } catch (err) {
+      setError(err)
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Sheet
+      open
+      title={measurement ? 'Edit entry' : 'Add entry'}
+      onClose={onClose}
+      footer={
+        <Button className="w-full" onClick={save} disabled={saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </Button>
+      }
+    >
+      <p className="mb-3 text-sm text-slate-500">
+        For hand-measured values, types and conditions (e.g. threshold type, surface bolts sticking), or any custom component.
+      </p>
+      <MeasurementFields value={fields} onChange={(patch) => setFields((f) => ({ ...f, ...patch }))} idPrefix="entry" />
+      <ErrorMessage error={error} className="mt-3" />
+    </Sheet>
+  )
+}
+
 export default function Layer1Capture({ jobId }) {
   const online = useOnlineStatus()
   const [capturing, setCapturing] = useState(false)
   const [sessionKey, setSessionKey] = useState(0)
+  const [editing, setEditing] = useState(null) // null | 'new' | measurement
 
   const { data: measurements, error, loading, reload } = useQuery(`measurements:${jobId}`, async () =>
     must(await supabase.from('measurements').select('*').eq('job_id', jobId).order('created_at')),
@@ -445,21 +465,8 @@ export default function Layer1Capture({ jobId }) {
     ),
   )
 
-  async function editValue(m) {
-    const next = window.prompt(`${partLabel(m.component)} — ${m.dimension || 'value'} (${m.unit})`, trimNumber(m.value_confirmed))
-    if (next === null) return
-    const value = Number(next)
-    if (!Number.isFinite(value)) return toast('Enter a number', 'error')
-    const { error: updateError } = await supabase
-      .from('measurements')
-      .update({ value_confirmed: value, confirmed_by_mike: true })
-      .eq('id', m.id)
-    if (updateError) return toast(updateError.message, 'error')
-    reload()
-  }
-
   async function remove(m) {
-    if (!window.confirm(`Delete ${partLabel(m.component)} — ${m.dimension}?`)) return
+    if (!window.confirm(`Delete ${partLabel(m.component)}${m.dimension ? ` — ${m.dimension}` : ''}?`)) return
     const { error: deleteError } = await supabase.from('measurements').delete().eq('id', m.id)
     if (deleteError) return toast(deleteError.message, 'error')
     reload()
@@ -489,12 +496,15 @@ export default function Layer1Capture({ jobId }) {
         Start Measurement Capture
       </Button>
       {!online && <p className="text-center text-sm text-amber-800">Measurement capture needs an internet connection.</p>}
+      <Button variant="secondary" className="w-full" onClick={() => setEditing('new')}>
+        <PlusIcon className="size-5" /> Add entry without a photo
+      </Button>
 
       <ErrorMessage error={error} />
       {loading && !measurements && <Spinner />}
       {measurements && measurements.length === 0 && (
         <EmptyState title="No measurements yet">
-          Photograph the opening with a measurement card beside it, then trace it.
+          Photograph the opening with a measurement card beside it and trace it, or add entries by hand.
         </EmptyState>
       )}
 
@@ -504,18 +514,25 @@ export default function Layer1Capture({ jobId }) {
             <div key={m.id} className="flex items-center gap-2 py-1 pr-1 pl-4">
               <div className="min-w-0 flex-1 py-2">
                 <div className="text-sm text-slate-500">{partLabel(m.component)}</div>
-                <div className="font-medium break-words">
-                  {m.dimension || 'Measurement'}:{' '}
-                  <span className="font-bold">{formatMeasurement(m.value_confirmed, m.unit)}</span>
-                </div>
-                {m.value_extracted !== null && Math.abs(m.value_extracted - m.value_confirmed) > 1 / 32 && (
+                {(m.dimension || hasValue(m)) && (
+                  <div className="font-medium break-words">
+                    {m.dimension || 'Measurement'}
+                    {hasValue(m) && (
+                      <>
+                        : <span className="font-bold">{formatMeasurement(m.value_confirmed, m.unit)}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+                {m.note && <div className="text-sm break-words text-slate-700">{m.note}</div>}
+                {m.value_extracted !== null && hasValue(m) && Math.abs(m.value_extracted - m.value_confirmed) > 1 / 32 && (
                   <div className="text-xs text-slate-500">
                     {m.cv_confidence === null ? 'Traced' : 'AI read'} {formatMeasurement(m.value_extracted, m.unit)} — adjusted
                   </div>
                 )}
               </div>
               {!m.confirmed_by_mike && <Badge tone="amber">Unconfirmed</Badge>}
-              <Button variant="ghost" className="px-2" onClick={() => editValue(m)}>
+              <Button variant="ghost" className="px-2" onClick={() => setEditing(m)}>
                 Edit
               </Button>
               <button
@@ -542,6 +559,14 @@ export default function Layer1Capture({ jobId }) {
             ))}
           </div>
         </section>
+      )}
+      {editing && (
+        <MeasurementForm
+          jobId={jobId}
+          measurement={editing === 'new' ? null : editing}
+          onClose={() => setEditing(null)}
+          onSaved={reload}
+        />
       )}
     </div>
   )

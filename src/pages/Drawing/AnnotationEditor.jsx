@@ -74,13 +74,13 @@ function renderShape(shape, index, strokeWidth, fontSize) {
   }
 }
 
-export default function AnnotationEditor({ file, jobId, onClose, onSaved }) {
+export default function AnnotationEditor({ file, jobId, onClose, onSaved, title = 'Annotate photo', initialColor = COLORS[0] }) {
   const stageRef = useRef(null)
   const areaRef = useRef(null)
   const [image, setImage] = useState(null)
   const [area, setArea] = useState({ width: 0, height: 0 })
   const [tool, setTool] = useState('pen')
-  const [color, setColor] = useState(COLORS[0])
+  const [color, setColor] = useState(initialColor)
   const [shapes, setShapes] = useState([])
   const [draft, setDraft] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -185,7 +185,7 @@ export default function AnnotationEditor({ file, jobId, onClose, onSaved }) {
         <button type="button" onClick={onClose} className="min-h-12 px-3 font-medium text-slate-300" disabled={saving}>
           Cancel
         </button>
-        <span className="font-semibold">Annotate photo</span>
+        <span className="font-semibold">{title}</span>
         <button
           type="button"
           onClick={save}

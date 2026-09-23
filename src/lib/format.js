@@ -84,3 +84,19 @@ export function formatPlusMinus(plusMinus) {
   const rounded = Math.max(1 / 16, Math.ceil(plusMinus * 16) / 16)
   return `±${formatMeasurement(rounded)}`
 }
+
+/**
+ * Parse a typed measurement: "36", "36.25", "36 1/4", "36-1/4", "1/2", '36 1/4"'.
+ * Returns null for empty input and NaN when it can't be read.
+ */
+export function parseMeasurementText(text) {
+  const t = String(text ?? '')
+    .trim()
+    .replace(/(["”]|in\.?)$/i, '')
+    .trim()
+  if (!t) return null
+  if (/^\d*\.?\d+$/.test(t)) return Number(t)
+  const m = t.match(/^(\d+)?[\s-]*(\d+)\/(\d+)$/)
+  if (m && Number(m[3]) > 0) return (Number(m[1]) || 0) + Number(m[2]) / Number(m[3])
+  return NaN
+}

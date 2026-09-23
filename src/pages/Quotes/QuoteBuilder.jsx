@@ -6,7 +6,7 @@ import { currency, formatMeasurement, inchesToBillableFeet, trimNumber } from '.
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { must, useQuery } from '../../lib/useQuery'
-import { partLabel, sortByPart } from '../Drawing/measurementParts'
+import { hasValue, partLabel, sortByPart } from '../Drawing/measurementParts'
 import { hasRealDescription } from '../Search/catalog'
 import AddProductSheet from './AddProductSheet'
 import ProposalView from './ProposalView'
@@ -155,6 +155,7 @@ export default function QuoteBuilder() {
   }
 
   const sortedMeasurements = sortByPart(measurements || [])
+  const numericMeasurements = sortedMeasurements.filter(hasValue)
 
   return (
     <div className="pb-4">
@@ -211,9 +212,12 @@ export default function QuoteBuilder() {
               {sortedMeasurements.map((m) => (
                 <li key={m.id} className="flex justify-between gap-3 px-4 py-2 text-sm">
                   <span className="min-w-0 break-words text-slate-600">
-                    {partLabel(m.component)} · {m.dimension}
+                    {[partLabel(m.component), m.dimension].filter(Boolean).join(' · ')}
                   </span>
-                  <span className="shrink-0 font-semibold">{formatMeasurement(m.value_confirmed, m.unit)}</span>
+                  <span className="shrink-0 text-right font-semibold">
+                    {hasValue(m) ? formatMeasurement(m.value_confirmed, m.unit) : m.note}
+                    {hasValue(m) && m.note && <span className="block text-xs font-normal text-slate-500">{m.note}</span>}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -261,18 +265,18 @@ export default function QuoteBuilder() {
                 <div className="flex-1 pb-2.5 text-right font-semibold">{currency(item.quantity * item.unit_price)}</div>
               </div>
 
-              {item.uom === 'ft' && sortedMeasurements.length > 0 && (
+              {item.uom === 'ft' && numericMeasurements.length > 0 && (
                 <select
                   className={`${inputClass} mt-2 text-sm`}
                   value=""
                   onChange={(e) => {
-                    const m = sortedMeasurements.find((x) => x.id === e.target.value)
+                    const m = numericMeasurements.find((x) => x.id === e.target.value)
                     if (m) updateItem(item.id, { quantity: toBillableFeet(m) })
                   }}
                   aria-label="Set quantity from a measurement"
                 >
                   <option value="">Set qty from a measurement…</option>
-                  {sortedMeasurements.map((m) => (
+                  {numericMeasurements.map((m) => (
                     <option key={m.id} value={m.id}>
                       {partLabel(m.component)} {m.dimension}: {formatMeasurement(m.value_confirmed, m.unit)} →{' '}
                       {trimNumber(toBillableFeet(m))} ft

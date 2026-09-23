@@ -30,8 +30,11 @@ begin
   end loop;
 end $$;
 
--- Each measurement records which dimension it is (width, height, rise…)
+-- Each measurement records which dimension it is (width, height, rise…) and
+-- an optional type / condition note; note-only entries have no number
 alter table public.measurements add column if not exists dimension text;
+alter table public.measurements add column if not exists note text;
+alter table public.measurements alter column value_confirmed drop not null;
 
 -- Quotes / takeoffs (Module 3)
 -- Proposal price = material + material × multiplier + labor_days × day_rate
