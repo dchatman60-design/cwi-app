@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { must, mustDelete, useQuery } from '../../lib/useQuery'
 import { hasValue, partLabel, sortByPart } from '../Drawing/measurementParts'
+import MoveToOpeningSheet from '../Openings/MoveToOpeningSheet'
 import { openingTypeLabel } from '../Openings/openings'
 import AddProductSheet from './AddProductSheet'
 import ProposalView from './ProposalView'
@@ -53,6 +54,7 @@ export default function QuoteBuilder() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const [adding, setAdding] = useState(null) // { kind: 'product' | 'service', opening }
+  const [moving, setMoving] = useState(null) // section to move lines/measurements out of
   const [deleting, setDeleting] = useState(false)
 
   const quoteQ = useQuery(`quote:${id}`, async () =>
@@ -68,7 +70,7 @@ export default function QuoteBuilder() {
   const { data: openings } = useQuery(`quote-openings:${jobId}`, async () =>
     jobId ? must(await supabase.from('openings').select('*').eq('job_id', jobId).order('created_at')) : [],
   )
-  const { data: measurements } = useQuery(`quote-measurements:${jobId}`, async () =>
+  const { data: measurements, reload: reloadMeasurements } = useQuery(`quote-measurements:${jobId}`, async () =>
     jobId ? must(await supabase.from('measurements').select('*').eq('job_id', jobId).eq('confirmed_by_mike', true)) : [],
   )
   const { data: diagrams } = useQuery(`quote-diagrams:${jobId}`, async () =>
@@ -271,6 +273,15 @@ export default function QuoteBuilder() {
               <span className="shrink-0 font-bold">{currency(linesSubtotal(quote, section.items))}</span>
             </div>
 
+            {!opening && hasOpenings && (
+              <div className="mb-3 flex items-center justify-between gap-3 rounded-lg bg-amber-50 px-3 py-2">
+                <span className="text-sm text-amber-950">Not in an opening yet.</span>
+                <Button variant="secondary" className="shrink-0" onClick={() => setMoving(section)}>
+                  Assign to opening
+                </Button>
+              </div>
+            )}
+
             {section.measurements.length > 0 && (
               <details className="mb-3 rounded-xl border border-slate-200 bg-white">
                 <summary className="flex min-h-11 cursor-pointer items-center px-4 text-sm font-semibold">
@@ -312,6 +323,11 @@ export default function QuoteBuilder() {
                 <PlusIcon className="size-5" /> Labor
               </Button>
             </div>
+            {opening && (section.items.length > 0 || section.measurements.length > 0) && (
+              <Button variant="ghost" className="mt-1 w-full" onClick={() => setMoving(section)}>
+                Move to another opening…
+              </Button>
+            )}
           </section>
         )
       })}
@@ -383,6 +399,18 @@ export default function QuoteBuilder() {
       </section>
 
       {adding?.kind === 'product' && <AddProductSheet onAdd={addProduct} onClose={() => setAdding(null)} />}
+      {moving && (
+        <MoveToOpeningSheet
+          jobId={jobId}
+          fromOpeningId={moving.opening?.id ?? null}
+          items={moving.items}
+          onClose={() => setMoving(null)}
+          onMoved={() => {
+            itemsQ.reload()
+            reloadMeasurements()
+          }}
+        />
+      )}
       {adding?.kind === 'service' && (
         <ServiceItemSheet openingName={adding.opening?.opening_name} onAdd={addService} onClose={() => setAdding(null)} />
       )}

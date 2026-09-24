@@ -11,6 +11,7 @@ import { formatDateTime } from '../../lib/format'
 import { bucketForLayer, removeFiles, supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { must, mustDelete, useQuery } from '../../lib/useQuery'
+import MoveToOpeningSheet from '../Openings/MoveToOpeningSheet'
 
 // Konva is large — load the canvas editor only when it's needed
 const AnnotationEditor = lazy(() => import('./AnnotationEditor'))
@@ -43,6 +44,7 @@ async function blankSketch() {
 export default function Layer2Annotation({ jobId, openingId = null }) {
   const [file, setFile] = useState(null)
   const [sketching, setSketching] = useState(false)
+  const [moving, setMoving] = useState(false)
 
   const { data: photos, error, loading, reload } = useQuery(`layer2-photos:${jobId}:${openingId}`, async () => {
     const query = supabase.from('job_photos').select('*').eq('job_id', jobId).eq('layer', 2)
@@ -124,6 +126,22 @@ export default function Layer2Annotation({ jobId, openingId = null }) {
             </figure>
           ))}
         </div>
+      )}
+      {photos?.length > 0 && (
+        <Button variant="ghost" className="w-full" onClick={() => setMoving(true)}>
+          Move to another opening…
+        </Button>
+      )}
+
+      {moving && (
+        <MoveToOpeningSheet
+          jobId={jobId}
+          fromOpeningId={openingId}
+          measurements={false}
+          photoLayers={[2]}
+          onClose={() => setMoving(false)}
+          onMoved={reload}
+        />
       )}
 
       {file && (

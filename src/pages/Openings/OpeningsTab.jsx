@@ -5,6 +5,7 @@ import { Badge, Button, Card, EmptyState, ErrorMessage, inputClass, Spinner } fr
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { must, useQuery } from '../../lib/useQuery'
+import MoveToOpeningSheet from './MoveToOpeningSheet'
 import OpeningForm from './OpeningForm'
 import { openingTypeLabel } from './openings'
 
@@ -16,6 +17,7 @@ export default function OpeningsTab({ job }) {
   const [adding, setAdding] = useState(false)
   const [moveTo, setMoveTo] = useState('')
   const [moving, setMoving] = useState(false)
+  const [picking, setPicking] = useState(false)
 
   const { data: openings, error, loading } = useQuery(`openings:${job.id}`, async () =>
     must(await supabase.from('openings').select('*').eq('job_id', job.id).order('created_at')),
@@ -104,13 +106,22 @@ export default function OpeningsTab({ job }) {
                 ))}
               </select>
               <Button onClick={moveUnassigned} disabled={!moveTo || moving}>
-                Move
+                Move all
               </Button>
             </div>
           ) : (
             <p className="text-sm text-amber-950">Add an opening first, then move them into it.</p>
           )}
+          {openings?.length > 0 && (
+            <Button variant="secondary" className="w-full" onClick={() => setPicking(true)}>
+              Choose one by one…
+            </Button>
+          )}
         </div>
+      )}
+
+      {picking && (
+        <MoveToOpeningSheet jobId={job.id} photoLayers={[1, 2, 3]} onClose={() => setPicking(false)} onMoved={counts.reload} />
       )}
 
       {adding && (

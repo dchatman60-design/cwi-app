@@ -15,6 +15,7 @@ import { toast } from '../../lib/toast'
 import { useOnlineStatus } from '../../lib/useOnlineStatus'
 import { must, useQuery } from '../../lib/useQuery'
 import { accuracyLevel } from './homography'
+import MoveToOpeningSheet from '../Openings/MoveToOpeningSheet'
 import MeasurementFields from './MeasurementFields'
 import { hasValue, MEASUREMENT_PARTS, partLabel, sortByPart, splitValue, toMeasurementRow, UNITS } from './measurementParts'
 import ReferencePicker from './ReferencePicker'
@@ -454,6 +455,7 @@ export default function Layer1Capture({ jobId, openingId = null }) {
   const [capturing, setCapturing] = useState(false)
   const [sessionKey, setSessionKey] = useState(0)
   const [editing, setEditing] = useState(null) // null | 'new' | measurement
+  const [moving, setMoving] = useState(false)
 
   const { data: measurements, error, loading, reload } = useQuery(`measurements:${jobId}:${openingId}`, async () =>
     must(await forOpening(supabase.from('measurements').select('*').eq('job_id', jobId), openingId).order('created_at')),
@@ -549,6 +551,11 @@ export default function Layer1Capture({ jobId, openingId = null }) {
           ))}
         </Card>
       )}
+      {sorted.length > 0 && (
+        <Button variant="ghost" className="-mt-2 w-full" onClick={() => setMoving(true)}>
+          Move to another opening…
+        </Button>
+      )}
 
       {photos?.length > 0 && (
         <section>
@@ -561,6 +568,17 @@ export default function Layer1Capture({ jobId, openingId = null }) {
             ))}
           </div>
         </section>
+      )}
+      {moving && (
+        <MoveToOpeningSheet
+          jobId={jobId}
+          fromOpeningId={openingId}
+          onClose={() => setMoving(false)}
+          onMoved={() => {
+            reload()
+            reloadPhotos()
+          }}
+        />
       )}
       {editing && (
         <MeasurementForm
