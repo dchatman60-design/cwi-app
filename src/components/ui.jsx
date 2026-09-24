@@ -9,6 +9,7 @@ const buttonVariants = {
   primary: 'bg-blue-700 text-white active:bg-blue-800 disabled:bg-blue-300',
   secondary: 'bg-white text-slate-800 border border-slate-300 active:bg-slate-100 disabled:text-slate-400',
   danger: 'bg-red-600 text-white active:bg-red-700 disabled:bg-red-300',
+  dangerOutline: 'bg-white text-red-700 border border-red-200 active:bg-red-50 disabled:text-red-300',
   ghost: 'text-blue-700 active:bg-blue-50 disabled:text-slate-400',
 }
 
@@ -23,7 +24,11 @@ export function Button({ variant = 'primary', className = '', type = 'button', .
 }
 
 export function Card({ className = '', ...props }) {
-  return <div className={`rounded-xl border border-slate-200 bg-white ${className}`} {...props} />
+  // Let a passed-in background or border color replace the defaults (two
+  // conflicting Tailwind classes don't reliably override each other)
+  const bg = /(^|\s)bg-/.test(className) ? '' : 'bg-white'
+  const border = /(^|\s)border-[a-z]+-\d/.test(className) ? '' : 'border-slate-200'
+  return <div className={`rounded-xl border ${border} ${bg} ${className}`} {...props} />
 }
 
 /** Page title bar. `back` shows a back arrow (to that path, or history if true). */

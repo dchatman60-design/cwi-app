@@ -469,7 +469,7 @@ export default function TraceMeasure({ file, reference, onReferenceChange, onCan
                       <button
                         type="button"
                         onClick={() => removeLine(row.lineId)}
-                        className="flex size-10 items-center justify-center text-slate-400"
+                        className="flex size-11 items-center justify-center text-slate-400"
                         aria-label={`Remove ${row.label}`}
                       >
                         <TrashIcon className="size-4" />

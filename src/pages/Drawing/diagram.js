@@ -3,6 +3,7 @@
 // label is exactly what Mike confirmed.
 
 import { formatMeasurement } from '../../lib/format'
+import { openingTypeLabel } from '../Openings/openings'
 import { hasValue, partLabel, sortByPart } from './measurementParts'
 
 export const DIAGRAM_WIDTH = 1600
@@ -35,20 +36,25 @@ function balloon(x, y, n) {
   })}`
 }
 
-export function buildDiagramSvg({ job, measurements, date = new Date() }) {
+export function buildDiagramSvg({ job, opening = null, measurements, date = new Date() }) {
+  const type = opening?.opening_type || 'single_door'
+  const isWindow = type === 'window'
+  const isDouble = type === 'double_door'
+
   // Every confirmed entry goes in the schedule; only numbers drive the drawing
   const confirmed = sortByPart(measurements.filter((m) => hasValue(m) || m.note))
   const find = (parts, pattern) =>
     confirmed.find((m) => hasValue(m) && parts.includes(m.component) && pattern.test(m.dimension || ''))
 
-  const width = find(['opening', 'head_jam', 'threshold'], /width|length|span|opening/i)
-  const height = find(['opening', 'side_jam_left', 'side_jam_right'], /height|length/i)
+  const width = find(['opening', 'window', 'head_jam', 'threshold'], /width|length|span|opening/i)
+  const height = find(['opening', 'window', 'side_jam_left', 'side_jam_right'], /height|length/i)
   const proportional = Boolean(width && height && width.unit === height.unit)
+  const defaultRatio = isWindow ? 1.2 : isDouble ? 84 / 72 : 84 / 36
   const ratio = proportional
-    ? Math.min(3.2, Math.max(1.2, Number(height.value_confirmed) / Number(width.value_confirmed)))
-    : 84 / 36
+    ? Math.min(3.2, Math.max(0.4, Number(height.value_confirmed) / Number(width.value_confirmed)))
+    : defaultRatio
 
-  // ---- Door elevation geometry (left half of the sheet) ----
+  // ---- Elevation geometry (left half of the sheet) ----
   const t = 26 // jamb thickness
   const maxW = 500
   const maxH = 720
@@ -57,21 +63,39 @@ export function buildDiagramSvg({ job, measurements, date = new Date() }) {
   const fx = 140 + (maxW - frameW) / 2 + 60
   const fy = 262
   const floorY = fy + frameH + 14
+  const rect = (x, y, w, h, fill = '#fff', extra = '') =>
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" stroke="${INK}" stroke-width="2" ${extra}/>`
 
   const parts = []
-  parts.push(`<rect x="${fx - t}" y="${fy - t}" width="${frameW + 2 * t}" height="${t}" fill="#e2e8f0" stroke="${INK}" stroke-width="2"/>`)
-  parts.push(`<rect x="${fx - t}" y="${fy}" width="${t}" height="${frameH}" fill="#e2e8f0" stroke="${INK}" stroke-width="2"/>`)
-  parts.push(`<rect x="${fx + frameW}" y="${fy}" width="${t}" height="${frameH}" fill="#e2e8f0" stroke="${INK}" stroke-width="2"/>`)
-  parts.push(`<rect x="${fx + 5}" y="${fy + 5}" width="${frameW - 10}" height="${frameH - 13}" fill="#fff" stroke="${INK}" stroke-width="2"/>`)
-  parts.push(
-    `<path d="M${fx + 12} ${fy + frameH - 14} V${fy + 12} H${fx + frameW - 12} V${fy + frameH - 14}" fill="none" stroke="${MUTED}" stroke-width="2" stroke-dasharray="10 7"/>`,
-  )
-  parts.push(`<circle cx="${fx + frameW - 42}" cy="${fy + frameH * 0.52}" r="8" fill="none" stroke="${INK}" stroke-width="2"/>`)
-  parts.push(`<line x1="${fx + 10}" y1="${fy + frameH - 10}" x2="${fx + frameW - 10}" y2="${fy + frameH - 10}" stroke="${ACCENT}" stroke-width="7" stroke-linecap="round"/>`)
-  parts.push(
-    `<polygon points="${fx - t - 12},${floorY} ${fx - t + 6},${fy + frameH} ${fx + frameW + t - 6},${fy + frameH} ${fx + frameW + t + 12},${floorY}" fill="#cbd5e1" stroke="${INK}" stroke-width="2"/>`,
-  )
-  parts.push(`<line x1="${fx - t - 90}" y1="${floorY}" x2="${fx + frameW + t + 90}" y2="${floorY}" stroke="${INK}" stroke-width="2"/>`)
+  parts.push(rect(fx - t, fy - t, frameW + 2 * t, t, '#e2e8f0'))
+  parts.push(rect(fx - t, fy, t, frameH, '#e2e8f0'))
+  parts.push(rect(fx + frameW, fy, t, frameH, '#e2e8f0'))
+
+  if (isWindow) {
+    parts.push(rect(fx + 5, fy + 5, frameW - 10, frameH - 10, '#e0f2fe'))
+    parts.push(`<line x1="${fx + 5}" y1="${fy + frameH / 2}" x2="${fx + frameW - 5}" y2="${fy + frameH / 2}" stroke="${INK}" stroke-width="4"/>`)
+    parts.push(rect(fx - t - 12, fy + frameH, frameW + 2 * t + 24, 16, '#cbd5e1')) // sill
+  } else {
+    if (isDouble) {
+      const half = frameW / 2
+      parts.push(rect(fx + 5, fy + 5, half - 9, frameH - 13))
+      parts.push(rect(fx + half + 4, fy + 5, half - 9, frameH - 13))
+      parts.push(rect(fx + half - 4, fy + 5, 8, frameH - 13, '#94a3b8')) // astragal
+      parts.push(`<circle cx="${fx + half - 26}" cy="${fy + frameH * 0.52}" r="8" fill="none" stroke="${INK}" stroke-width="2"/>`)
+      parts.push(`<circle cx="${fx + half + 26}" cy="${fy + frameH * 0.52}" r="8" fill="none" stroke="${INK}" stroke-width="2"/>`)
+    } else {
+      parts.push(rect(fx + 5, fy + 5, frameW - 10, frameH - 13))
+      parts.push(`<circle cx="${fx + frameW - 42}" cy="${fy + frameH * 0.52}" r="8" fill="none" stroke="${INK}" stroke-width="2"/>`)
+    }
+    parts.push(
+      `<path d="M${fx + 12} ${fy + frameH - 14} V${fy + 12} H${fx + frameW - 12} V${fy + frameH - 14}" fill="none" stroke="${MUTED}" stroke-width="2" stroke-dasharray="10 7"/>`,
+    )
+    parts.push(`<line x1="${fx + 10}" y1="${fy + frameH - 10}" x2="${fx + frameW - 10}" y2="${fy + frameH - 10}" stroke="${ACCENT}" stroke-width="7" stroke-linecap="round"/>`)
+    parts.push(
+      `<polygon points="${fx - t - 12},${floorY} ${fx - t + 6},${fy + frameH} ${fx + frameW + t - 6},${fy + frameH} ${fx + frameW + t + 12},${floorY}" fill="#cbd5e1" stroke="${INK}" stroke-width="2"/>`,
+    )
+    parts.push(`<line x1="${fx - t - 90}" y1="${floorY}" x2="${fx + frameW + t + 90}" y2="${floorY}" stroke="${INK}" stroke-width="2"/>`)
+  }
 
   // Width dimension (above the head)
   const dimY = fy - t - 45
@@ -121,6 +145,12 @@ export function buildDiagramSvg({ job, measurements, date = new Date() }) {
     v_seal: [fx + 14, fy + frameH * 0.66],
     t_astragal: [fx + frameW * 0.5, fy + frameH * 0.4],
     surface_bolts: [fx + frameW - 30, fy + 34],
+    window: [fx + frameW * 0.5, fy + frameH * 0.25],
+  }
+  if (isWindow) {
+    delete balloonAt.threshold
+    delete balloonAt.sweep
+    delete balloonAt.door_bottom
   }
   const measuredParts = [...new Set(confirmed.map((m) => m.component))]
   const numberFor = Object.fromEntries(measuredParts.map((p, i) => [p, i + 1]))
@@ -166,8 +196,21 @@ export function buildDiagramSvg({ job, measurements, date = new Date() }) {
     `<rect x="20" y="20" width="${DIAGRAM_WIDTH - 40}" height="${DIAGRAM_HEIGHT - 40}" fill="none" stroke="${INK}" stroke-width="3"/>`,
     `<line x1="20" y1="140" x2="${DIAGRAM_WIDTH - 20}" y2="140" stroke="${INK}" stroke-width="2"/>`,
     text(50, 62, 'CUSTOM WEATHERSTRIP, INC.', { size: 20, weight: 700, fill: MUTED, extra: 'letter-spacing="3"' }),
-    text(50, 102, clip(`Opening Diagram — ${job.job_name}`, 58), { size: 34, weight: 700 }),
-    text(50, 128, clip(job.site_address || '', 80), { size: 20, fill: MUTED }),
+    text(50, 102, clip(opening ? `${opening.opening_name} — ${job.job_name}` : `Opening Diagram — ${job.job_name}`, 58), {
+      size: 34,
+      weight: 700,
+    }),
+    text(
+      50,
+      128,
+      clip(
+        [opening && openingTypeLabel(opening.opening_type), opening?.is_fire_rated && 'Fire-rated', job.site_address]
+          .filter(Boolean)
+          .join(' · '),
+        80,
+      ),
+      { size: 20, fill: MUTED },
+    ),
     text(DIAGRAM_WIDTH - 50, 62, dateLabel, { size: 20, anchor: 'end' }),
     text(DIAGRAM_WIDTH - 50, 92, 'Costa Mesa, California', { size: 18, fill: MUTED, anchor: 'end' }),
   ]

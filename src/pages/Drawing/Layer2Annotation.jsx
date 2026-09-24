@@ -4,13 +4,13 @@
 // saved to the annotation-photos bucket.
 
 import { lazy, Suspense, useState } from 'react'
-import { CameraIcon, EditIcon } from '../../components/icons'
+import { CameraIcon, EditIcon, TrashIcon } from '../../components/icons'
 import SignedImage from '../../components/SignedImage'
 import { Button, EmptyState, ErrorMessage, Spinner } from '../../components/ui'
 import { formatDateTime } from '../../lib/format'
-import { supabase } from '../../lib/supabase'
+import { bucketForLayer, removeFiles, supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
-import { must, useQuery } from '../../lib/useQuery'
+import { must, mustDelete, useQuery } from '../../lib/useQuery'
 
 // Konva is large — load the canvas editor only when it's needed
 const AnnotationEditor = lazy(() => import('./AnnotationEditor'))
@@ -40,20 +40,26 @@ async function blankSketch() {
   return new File([blob], 'sketch.jpg', { type: 'image/jpeg' })
 }
 
-export default function Layer2Annotation({ jobId }) {
+export default function Layer2Annotation({ jobId, openingId = null }) {
   const [file, setFile] = useState(null)
   const [sketching, setSketching] = useState(false)
 
-  const { data: photos, error, loading, reload } = useQuery(`layer2-photos:${jobId}`, async () =>
-    must(
-      await supabase
-        .from('job_photos')
-        .select('*')
-        .eq('job_id', jobId)
-        .eq('layer', 2)
-        .order('created_at', { ascending: false }),
-    ),
-  )
+  const { data: photos, error, loading, reload } = useQuery(`layer2-photos:${jobId}:${openingId}`, async () => {
+    const query = supabase.from('job_photos').select('*').eq('job_id', jobId).eq('layer', 2)
+    return must(await (openingId ? query.eq('opening_id', openingId) : query.is('opening_id', null)).order('created_at', { ascending: false }))
+  })
+
+  async function remove(photo) {
+    if (!window.confirm('Delete this photo or sketch?')) return
+    try {
+      mustDelete(await supabase.from('job_photos').delete().eq('id', photo.id).select('id'), 'this photo')
+      await removeFiles(bucketForLayer(2), [photo.storage_path]).catch(() => {})
+      toast('Deleted')
+      reload()
+    } catch (err) {
+      toast(err.message, 'error')
+    }
+  }
 
   function pick(e) {
     const chosen = e.target.files?.[0]
@@ -104,7 +110,17 @@ export default function Layer2Annotation({ jobId }) {
           {photos.map((p) => (
             <figure key={p.id}>
               <SignedImage layer={2} path={p.storage_path} className="aspect-[4/3] w-full rounded-lg object-cover" link />
-              <figcaption className="mt-1 text-xs text-slate-500">{formatDateTime(p.created_at)}</figcaption>
+              <figcaption className="flex items-center justify-between text-xs text-slate-500">
+                {formatDateTime(p.created_at)}
+                <button
+                  type="button"
+                  onClick={() => remove(p)}
+                  className="flex size-11 items-center justify-center text-slate-400"
+                  aria-label="Delete photo"
+                >
+                  <TrashIcon className="size-5" />
+                </button>
+              </figcaption>
             </figure>
           ))}
         </div>
@@ -121,6 +137,7 @@ export default function Layer2Annotation({ jobId }) {
           <AnnotationEditor
             file={file}
             jobId={jobId}
+            openingId={openingId}
             onClose={() => setFile(null)}
             title={sketching ? 'Sketch' : 'Annotate photo'}
             initialColor={sketching ? '#111827' : undefined}

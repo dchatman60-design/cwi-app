@@ -5,14 +5,15 @@ Mobile web app (PWA) for Custom Weatherstrip, Inc. — React + Vite + Tailwind, 
 | Module | Route | What it does |
 |---|---|---|
 | 1 · Product Search | `/search` | Real-time search of the 5,336-SKU `pemko_products` catalog, add to quote |
-| 2 · Drawing | `/jobs/:id` | Layer 1 CV measurement capture · Layer 2 photo annotation · Layer 3 technical diagram |
-| 3 · Quotes | `/quotes`, `/quotes/:id` | Takeoff from confirmed measurements, pricing, client proposal |
+| Jobs | `/jobs/:id` | Openings (each door / window), job notes with attachments, tasks, quotes |
+| 2 · Drawing | `/jobs/:id/openings/:openingId` | Per opening: Layer 1 measurements · Layer 2 photos & sketches · Layer 3 diagram · products |
+| 3 · Quotes | `/quotes`, `/quotes/:id` | Broken out by opening; Pemko products + labor/service lines; client proposal |
 | 4 · CRM | `/tasks`, `/clients` | Tasks with email reminders, offline task creation |
 | 5 · Users (admin) | `/admin/users` | Add, edit, deactivate users |
 
 ## One-time setup
 
-1. **Database** — Supabase → SQL Editor → run [`supabase/setup.sql`](supabase/setup.sql).
+1. **Database** — Supabase → SQL Editor → run [`supabase/setup.sql`](supabase/setup.sql), then [`002-measurement-notes.sql`](supabase/002-measurement-notes.sql), [`003-openings-notes-services.sql`](supabase/003-openings-notes-services.sql) and [`004-openings-fixups.sql`](supabase/004-openings-fixups.sql), in order.
    First edit section 5 at the bottom to add Mike (and yourself). Everyone who signs in needs a row in `app_users`.
 2. **Sign-in emails** — Supabase → Authentication:
    - **Emails → Templates**: in both **Magic Link** and **Confirm signup**, add the code to the body, e.g. `<p>Your CWI Field App sign-in code: <strong>{{ .Token }}</strong></p>`. The app signs people in with this code (links open in Safari, not the installed iPhone app).
@@ -52,4 +53,7 @@ npm run dev
 - **AI keys stay server-side.** The browser calls `/api/extract-measurements`, which checks the Supabase session and calls GPT-4o.
 - **Offline tasks** are saved to IndexedDB with their final ID and synced on reconnect; their reminders go out once synced.
 - **Access control** is enforced in the database (RLS): only signed-in users with an active `app_users` row can read or write anything; only admins can change users.
-- **Pricing** (Engagement Guide §3.2): Proposal = material + material × multiplier (0.25 / 0.50) + install days × day rate.
+- **Openings** group everything for one door or window: measurements, photos, sketches, its diagram, and its quote lines (`opening_id`). Quote lines can also sit in a job-wide General section.
+- **Pricing** (Engagement Guide §3.2, extended): Proposal = Pemko material + material × multiplier (0.25 / 0.50) + labor/service lines (priced as entered, no markup) + install days × day rate.
+- **Job notes** (client correspondence, general, site visit, supplier, scheduling) keep attachments in the private `job-files` bucket.
+- **Deleting**: jobs and clients — admins only (a job delete removes its openings, measurements, photos, notes and quotes; tasks are kept). Quotes, openings, notes, annotation photos and diagrams — any team member. Raw Layer 1 photos are only removed with their job.

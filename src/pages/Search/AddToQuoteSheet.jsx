@@ -14,6 +14,7 @@ export default function AddToQuoteSheet({ product, onClose }) {
   const navigate = useNavigate()
   const [choice, setChoice] = useState(null)
   const [jobId, setJobId] = useState('')
+  const [openingChoice, setOpeningChoice] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -23,7 +24,7 @@ export default function AddToQuoteSheet({ product, onClose }) {
     must(
       await supabase
         .from('quotes')
-        .select('id, title, job:job_id(job_name)')
+        .select('id, title, job_id, job:job_id(job_name)')
         .eq('status', 'draft')
         .order('updated_at', { ascending: false })
         .limit(50),
@@ -37,6 +38,15 @@ export default function AddToQuoteSheet({ product, onClose }) {
   const defaultChoice = quotes?.some((q) => q.id === remembered) ? remembered : quotes?.[0]?.id || NEW
   const selected = choice ?? defaultChoice
 
+  // Which opening (door / window) the product is for, when the quote has a job
+  const openingsJobId = selected === NEW ? jobId : quotes?.find((q) => q.id === selected)?.job_id
+  const { data: openings } = useQuery(`add-to-quote-openings:${openingsJobId}`, async () =>
+    openingsJobId
+      ? must(await supabase.from('openings').select('id, opening_name').eq('job_id', openingsJobId).order('created_at'))
+      : [],
+  )
+  const openingId = openings?.some((o) => o.id === openingChoice) ? openingChoice : ''
+
   async function add() {
     const qty = Number(quantity)
     if (!Number.isFinite(qty) || qty <= 0) return setError('Enter a quantity greater than zero.')
@@ -44,7 +54,7 @@ export default function AddToQuoteSheet({ product, onClose }) {
     setError(null)
     try {
       const quoteId = selected === NEW ? (await createQuote({ jobId: jobId || null })).id : selected
-      await addQuoteItem(quoteId, product, qty)
+      await addQuoteItem(quoteId, product, qty, openingId || null)
       rememberQuote(quoteId)
       toast(`Added ${product.sku} to quote`)
       setAddedTo(quoteId)
@@ -110,6 +120,19 @@ export default function AddToQuoteSheet({ product, onClose }) {
               {jobs?.map((j) => (
                 <option key={j.id} value={j.id}>
                   {j.job_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+
+        {openings?.length > 0 && (
+          <Field label="Opening">
+            <select className={inputClass} value={openingId} onChange={(e) => setOpeningChoice(e.target.value)}>
+              <option value="">General — not a specific opening</option>
+              {openings.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.opening_name}
                 </option>
               ))}
             </select>

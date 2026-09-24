@@ -5,6 +5,10 @@
 -- 1. Adds the columns and tables the app needs
 -- 2. Locks every table down so only signed-in, active team members
 --    (rows in app_users with is_active = true) can read or change data
+--
+-- On a new project, run 002-… and 003-… after this file, in order.
+-- If you ever re-run this file, re-run 003 afterwards (this file resets
+-- the access rules that 003 adds).
 -- =====================================================================
 
 

@@ -9,6 +9,7 @@ import SignIn from './pages/SignIn'
 const ProductSearch = lazy(() => import('./pages/Search/ProductSearch'))
 const JobList = lazy(() => import('./pages/Jobs/JobList'))
 const JobDetail = lazy(() => import('./pages/Jobs/JobDetail'))
+const OpeningDetail = lazy(() => import('./pages/Openings/OpeningDetail'))
 const QuoteList = lazy(() => import('./pages/Quotes/QuoteList'))
 const QuoteBuilder = lazy(() => import('./pages/Quotes/QuoteBuilder'))
 const ClientList = lazy(() => import('./pages/Clients/ClientList'))
@@ -72,6 +73,7 @@ export default function App() {
           <Route path="search" element={<ProductSearch />} />
           <Route path="jobs" element={<JobList />} />
           <Route path="jobs/:id" element={<JobDetail />} />
+          <Route path="jobs/:jobId/openings/:openingId" element={<OpeningDetail />} />
           <Route path="quotes" element={<QuoteList />} />
           <Route path="quotes/:id" element={<QuoteBuilder />} />
           <Route path="clients" element={<ClientList />} />

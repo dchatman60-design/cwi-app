@@ -2,20 +2,34 @@ import { BackIcon, PrintIcon } from '../../components/icons'
 import SignedImage from '../../components/SignedImage'
 import { Button } from '../../components/ui'
 import { currency, trimNumber } from '../../lib/format'
+import { openingTypeLabel } from '../Openings/openings'
 import { hasRealDescription } from '../Search/catalog'
-import { quoteTitle } from './quotes'
+import { isService, linesSubtotal, quoteTitle, SERVICE_UNITS } from './quotes'
+
+function qtyLabel(item) {
+  const qty = trimNumber(item.quantity)
+  if (isService(item)) {
+    if (item.uom === 'lot') return ''
+    const unit = SERVICE_UNITS.find((u) => u.value === item.uom)?.label.replace(/^per /, '') || ''
+    return unit === 'each' ? qty : `${qty} ${unit}`
+  }
+  return item.uom === 'ea' || !item.uom ? qty : `${qty} ${item.uom}`
+}
 
 /**
- * Client-facing proposal summary. Materials are shown with markup included;
- * the internal multiplier and unit costs are not shown to the client.
+ * Client-facing proposal, broken out by opening. Each opening shows its
+ * materials and work with a price (materials include markup); the internal
+ * multiplier and unit costs are not shown.
  */
-export default function ProposalView({ quote, items, totals, diagramPath, onBack }) {
+export default function ProposalView({ quote, sections, totals, diagramsByOpening, onBack }) {
   const client = quote.job?.client
   const date = new Date(quote.updated_at || quote.created_at).toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
   })
+  const hasOpenings = sections.some((s) => s.opening)
+  const visible = sections.filter((s) => s.items.length > 0 || (s.opening && diagramsByOpening[s.opening.id]))
 
   return (
     <div className="px-4 pt-4 print:p-0">
@@ -58,52 +72,75 @@ export default function ProposalView({ quote, items, totals, diagramPath, onBack
           </div>
         </section>
 
-        <section>
-          <h2 className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">Scope of materials</h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-300 text-left text-slate-500">
-                <th className="py-2 pr-2 font-semibold">Qty</th>
-                <th className="py-2 font-semibold">Item</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id} className="border-b border-slate-100 align-top">
-                  <td className="py-2 pr-3 whitespace-nowrap">
-                    {trimNumber(item.quantity)} {item.uom === 'ea' || !item.uom ? '' : item.uom}
-                  </td>
-                  <td className="py-2 break-words">
-                    <span className="font-semibold">Pemko {item.sku}</span>
-                    {hasRealDescription(item) && <span className="text-slate-600"> — {item.description}</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+        {visible.map((section) => {
+          const products = section.items.filter((i) => !isService(i))
+          const services = section.items.filter(isService)
+          const diagram = section.opening && diagramsByOpening[section.opening.id]
+          return (
+            <section key={section.key} className="mt-4 break-inside-avoid border-t border-slate-200 pt-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="font-bold">
+                  {section.opening ? section.opening.opening_name : hasOpenings ? 'General' : 'Scope of work'}
+                  {section.opening && (
+                    <span className="ml-2 text-sm font-normal text-slate-500">
+                      {openingTypeLabel(section.opening.opening_type)}
+                    </span>
+                  )}
+                </h2>
+                {section.items.length > 0 && (
+                  <span className="font-semibold">{currency(linesSubtotal(quote, section.items))}</span>
+                )}
+              </div>
 
-        {diagramPath && (
-          <section className="mt-5 break-inside-avoid">
-            <h2 className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">Opening diagram</h2>
-            <SignedImage layer={3} path={diagramPath} className="w-full rounded border border-slate-200 object-contain" />
-          </section>
-        )}
+              {products.length > 0 && (
+                <table className="mt-2 w-full text-sm">
+                  <tbody>
+                    {products.map((item) => (
+                      <tr key={item.id} className="border-b border-slate-100 align-top">
+                        <td className="w-20 py-1.5 pr-3 whitespace-nowrap">{qtyLabel(item)}</td>
+                        <td className="py-1.5 break-words">
+                          <span className="font-semibold">Pemko {item.sku}</span>
+                          {hasRealDescription(item) && <span className="text-slate-600"> — {item.description}</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {services.length > 0 && (
+                <table className="mt-2 w-full text-sm">
+                  <tbody>
+                    {services.map((item) => (
+                      <tr key={item.id} className="border-b border-slate-100 align-top">
+                        <td className="w-20 py-1.5 pr-3 whitespace-nowrap">{qtyLabel(item)}</td>
+                        <td className="py-1.5 break-words">{item.description}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
 
-        <section className="mt-5 ml-auto max-w-sm break-inside-avoid">
+              {diagram && (
+                <SignedImage layer={3} path={diagram} className="mt-3 w-full rounded border border-slate-200 object-contain" />
+              )}
+            </section>
+          )
+        })}
+
+        <section className="mt-6 ml-auto max-w-sm break-inside-avoid">
           <dl className="space-y-1.5 text-sm">
             <div className="flex justify-between">
-              <dt>Materials</dt>
-              <dd>{currency(totals.materialWithMarkup)}</dd>
+              <dt>Materials &amp; work</dt>
+              <dd>{currency(totals.materialWithMarkup + totals.services)}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt>
-                Installation labor
-                {Number(quote.labor_days) > 0 &&
-                  ` (${trimNumber(quote.labor_days)} day${Number(quote.labor_days) === 1 ? '' : 's'})`}
-              </dt>
-              <dd>{currency(totals.labor)}</dd>
-            </div>
+            {totals.labor > 0 && (
+              <div className="flex justify-between">
+                <dt>
+                  Installation labor ({trimNumber(quote.labor_days)} day{Number(quote.labor_days) === 1 ? '' : 's'})
+                </dt>
+                <dd>{currency(totals.labor)}</dd>
+              </div>
+            )}
             <div className="flex justify-between border-t-2 border-slate-900 pt-2 text-lg font-bold">
               <dt>Total</dt>
               <dd>{currency(totals.total)}</dd>

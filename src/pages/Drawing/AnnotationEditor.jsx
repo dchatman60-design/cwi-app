@@ -74,7 +74,15 @@ function renderShape(shape, index, strokeWidth, fontSize) {
   }
 }
 
-export default function AnnotationEditor({ file, jobId, onClose, onSaved, title = 'Annotate photo', initialColor = COLORS[0] }) {
+export default function AnnotationEditor({
+  file,
+  jobId,
+  openingId = null,
+  onClose,
+  onSaved,
+  title = 'Annotate photo',
+  initialColor = COLORS[0],
+}) {
   const stageRef = useRef(null)
   const areaRef = useRef(null)
   const [image, setImage] = useState(null)
@@ -166,7 +174,7 @@ export default function AnnotationEditor({ file, jobId, onClose, onSaved, title 
         quality: 0.9,
         pixelRatio: exportScale / scale,
       })
-      const row = await uploadLayerFile(2, jobId, blob, 'jpg')
+      const row = await uploadLayerFile(2, jobId, blob, 'jpg', openingId)
       onSaved(row)
     } catch (err) {
       setError(err.message || 'Could not save the photo.')

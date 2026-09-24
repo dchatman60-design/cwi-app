@@ -7,6 +7,16 @@ export function must({ data, error }) {
 }
 
 /**
+ * Unwrap the result of a `.delete()…select()`. Row-level security silently
+ * skips rows you may not delete, so an empty result means "not allowed".
+ */
+export function mustDelete({ data, error }, what = 'this') {
+  if (error) throw error
+  if (!data?.length) throw new Error(`You don't have permission to delete ${what}.`)
+  return data
+}
+
+/**
  * Minimal data-loading hook. `key` identifies the request — when it changes,
  * the fetcher runs again. `reload()` re-runs it; `mutate()` edits the cached
  * data in place for optimistic updates.

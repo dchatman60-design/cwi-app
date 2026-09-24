@@ -35,13 +35,14 @@ function layerConfig(layer) {
 }
 
 /**
- * Upload a file (File or Blob) for a job into the bucket that belongs to
- * `layer`, and record it in job_photos. Returns the job_photos row.
+ * Upload a file (File or Blob) for a job — and optionally one of its
+ * openings — into the bucket that belongs to `layer`, and record it in
+ * job_photos. Returns the job_photos row.
  *
  * Layer 1 photos are uploaded with upsert: false so an existing raw
  * measurement photo can never be overwritten.
  */
-export async function uploadLayerFile(layer, jobId, file, extension = 'jpg') {
+export async function uploadLayerFile(layer, jobId, file, extension = 'jpg', openingId = null) {
   const { bucket, photoType } = layerConfig(layer)
   const storagePath = `${jobId}/${Date.now()}-${crypto.randomUUID()}.${extension}`
 
@@ -55,7 +56,7 @@ export async function uploadLayerFile(layer, jobId, file, extension = 'jpg') {
 
   const { data, error: insertError } = await supabase
     .from('job_photos')
-    .insert({ job_id: jobId, photo_type: photoType, storage_path: storagePath, layer })
+    .insert({ job_id: jobId, photo_type: photoType, storage_path: storagePath, layer, ...(openingId && { opening_id: openingId }) })
     .select()
     .single()
   if (insertError) throw insertError
@@ -64,14 +65,30 @@ export async function uploadLayerFile(layer, jobId, file, extension = 'jpg') {
 }
 
 /**
- * All buckets are private, so images must be displayed through a
- * short-lived signed URL rather than a public URL.
+ * All buckets are private, so files must be opened through a short-lived
+ * signed URL rather than a public URL.
  */
-export async function getSignedUrl(layer, storagePath, expiresInSeconds = 3600) {
-  const { bucket } = layerConfig(layer)
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .createSignedUrl(storagePath, expiresInSeconds)
+export async function getSignedFileUrl(bucket, storagePath, expiresInSeconds = 3600) {
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, expiresInSeconds)
   if (error) throw error
   return data.signedUrl
+}
+
+export function getSignedUrl(layer, storagePath, expiresInSeconds = 3600) {
+  return getSignedFileUrl(layerConfig(layer).bucket, storagePath, expiresInSeconds)
+}
+
+export function bucketForLayer(layer) {
+  return layerConfig(layer).bucket
+}
+
+// Note attachments (emails, screenshots, text threads) — kept apart from drawings
+export const JOB_FILES_BUCKET = 'job-files'
+
+/** Delete storage files, in batches. */
+export async function removeFiles(bucket, paths) {
+  for (let i = 0; i < paths.length; i += 100) {
+    const { error } = await supabase.storage.from(bucket).remove(paths.slice(i, i + 100))
+    if (error) throw error
+  }
 }

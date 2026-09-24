@@ -1,34 +1,56 @@
 import { useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { MapIcon } from '../../components/icons'
 import { Badge, Button, Card, EmptyState, ErrorMessage, PageHeader, Spinner } from '../../components/ui'
+import { useAuth } from '../../context/auth'
+import { deleteJob } from '../../lib/jobs'
 import { supabase } from '../../lib/supabase'
+import { toast } from '../../lib/toast'
 import { must, useQuery } from '../../lib/useQuery'
-import Layer1Capture from '../Drawing/Layer1Capture'
-import Layer2Annotation from '../Drawing/Layer2Annotation'
-import Layer3Diagram from '../Drawing/Layer3Diagram'
+import JobNotes from '../Notes/JobNotes'
+import OpeningsTab from '../Openings/OpeningsTab'
 import JobQuotes from '../Quotes/JobQuotes'
 import LinkedTasks from '../Tasks/LinkedTasks'
 import JobForm from './JobForm'
 import { jobStatusLabel, jobStatusTone } from './jobStatus'
 
 const TABS = [
-  { id: 'measure', label: 'Measure', hint: 'Layer 1' },
-  { id: 'photos', label: 'Photos', hint: 'Layer 2' },
-  { id: 'diagram', label: 'Diagram', hint: 'Layer 3' },
+  { id: 'openings', label: 'Openings' },
+  { id: 'notes', label: 'Notes' },
   { id: 'tasks', label: 'Tasks' },
   { id: 'quotes', label: 'Quotes' },
 ]
 
 export default function JobDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const { isAdmin } = useAuth()
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState(false)
-  const tab = TABS.some((t) => t.id === params.get('tab')) ? params.get('tab') : 'measure'
+  const [deleting, setDeleting] = useState(false)
+  const tab = TABS.some((t) => t.id === params.get('tab')) ? params.get('tab') : 'openings'
 
   const { data: job, error, loading, reload } = useQuery(`job:${id}`, async () =>
     must(await supabase.from('jobs').select('*, client:client_id(id, client_name)').eq('id', id).maybeSingle()),
   )
+
+  async function handleDelete() {
+    if (
+      !window.confirm(
+        `Delete "${job.job_name}" and everything in it — openings, measurements, photos, notes, attachments and quotes? Linked tasks are kept. This can't be undone.`,
+      )
+    )
+      return
+    setDeleting(true)
+    try {
+      await deleteJob(id)
+      toast('Job deleted')
+      navigate('/jobs', { replace: true })
+    } catch (err) {
+      toast(err.message, 'error')
+      setDeleting(false)
+    }
+  }
 
   if (loading && !job) return <Spinner />
   if (error) return <ErrorMessage error={error} className="m-4" />
@@ -82,23 +104,29 @@ export default function JobDetail() {
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => setParams({ tab: t.id }, { replace: true })}
-            className={`flex min-h-12 flex-1 flex-col items-center justify-center border-b-2 text-sm font-semibold ${
+            className={`flex min-h-12 flex-1 items-center justify-center border-b-2 text-sm font-semibold ${
               tab === t.id ? 'border-blue-700 text-blue-700' : 'border-transparent text-slate-500'
             }`}
           >
             {t.label}
-            {t.hint && <span className="text-[10px] font-medium opacity-70">{t.hint}</span>}
           </button>
         ))}
       </div>
 
       <div className="px-4 pt-4">
-        {tab === 'measure' && <Layer1Capture jobId={id} />}
-        {tab === 'photos' && <Layer2Annotation jobId={id} />}
-        {tab === 'diagram' && <Layer3Diagram job={job} />}
+        {tab === 'openings' && <OpeningsTab job={job} />}
+        {tab === 'notes' && <JobNotes jobId={id} />}
         {tab === 'tasks' && <LinkedTasks jobId={id} />}
         {tab === 'quotes' && <JobQuotes jobId={id} />}
       </div>
+
+      {isAdmin && (
+        <div className="mt-10 px-4">
+          <Button variant="dangerOutline" className="w-full" onClick={handleDelete} disabled={deleting}>
+            {deleting ? 'Deleting…' : 'Delete job'}
+          </Button>
+        </div>
+      )}
 
       {editing && <JobForm job={job} onClose={() => setEditing(false)} onSaved={reload} />}
     </div>

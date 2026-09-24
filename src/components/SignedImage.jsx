@@ -1,9 +1,10 @@
-import { getSignedUrl } from '../lib/supabase'
+import { bucketForLayer, getSignedFileUrl } from '../lib/supabase'
 import { useQuery } from '../lib/useQuery'
 
-/** Displays an image from one of the private drawing-layer buckets. */
-export default function SignedImage({ layer, path, alt = '', className = '', link = false }) {
-  const { data: url, error } = useQuery(`signed:${layer}:${path}`, () => getSignedUrl(layer, path))
+/** Displays an image from a private bucket (pass a drawing `layer` or a `bucket`). */
+export default function SignedImage({ layer, bucket, path, alt = '', className = '', link = false }) {
+  const from = bucket || bucketForLayer(layer)
+  const { data: url, error } = useQuery(`signed:${from}:${path}`, () => getSignedFileUrl(from, path))
 
   if (error) {
     return (

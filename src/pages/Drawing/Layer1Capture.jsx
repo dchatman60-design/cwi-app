@@ -89,7 +89,7 @@ function RowInfo({ row, onRemove }) {
   )
 }
 
-function CaptureSession({ jobId, onDone, onCancel }) {
+function CaptureSession({ jobId, openingId, onDone, onCancel }) {
   const [method, setMethod] = useState(loadMethod)
   const [reference, setReference] = useState(loadReference)
   const [part, setPart] = useState('head_jam')
@@ -136,7 +136,7 @@ function CaptureSession({ jobId, onDone, onCancel }) {
     setRows([])
 
     // The raw photo is saved as-is while Mike traces or the AI reads it
-    const upload = uploadLayerFile(1, jobId, file, extensionFor(file))
+    const upload = uploadLayerFile(1, jobId, file, extensionFor(file), openingId)
     uploadRef.current = upload
     upload.then((row) => setPhotoPath(row.storage_path)).catch(() => {})
 
@@ -225,6 +225,7 @@ function CaptureSession({ jobId, onDone, onCancel }) {
           prepared.map(({ r, row }) => ({
             ...row,
             job_id: jobId,
+            opening_id: openingId,
             value_extracted: r.extracted,
             cv_confidence: r.confidence,
             photo_url: photoPath,
@@ -392,7 +393,7 @@ function CaptureSession({ jobId, onDone, onCancel }) {
 }
 
 /** Add or edit one entry by hand — values, types, conditions. No photo needed. */
-function MeasurementForm({ jobId, measurement, onClose, onSaved }) {
+function MeasurementForm({ jobId, openingId, measurement, onClose, onSaved }) {
   const [fields, setFields] = useState(() => ({
     component: measurement?.component ?? 'head_jam',
     dimension: measurement?.dimension ?? '',
@@ -414,7 +415,7 @@ function MeasurementForm({ jobId, measurement, onClose, onSaved }) {
         if (!row.note && measurement.note) patch.note = null
         must(await supabase.from('measurements').update(patch).eq('id', measurement.id))
       } else {
-        must(await supabase.from('measurements').insert({ ...row, job_id: jobId, confirmed_by_mike: true }))
+        must(await supabase.from('measurements').insert({ ...row, job_id: jobId, opening_id: openingId, confirmed_by_mike: true }))
       }
       toast(measurement ? 'Entry updated' : 'Entry added')
       onSaved()
@@ -445,23 +446,23 @@ function MeasurementForm({ jobId, measurement, onClose, onSaved }) {
   )
 }
 
-export default function Layer1Capture({ jobId }) {
+/** Rows for this opening (or, with no opening, the job's unassigned rows). */
+const forOpening = (query, openingId) => (openingId ? query.eq('opening_id', openingId) : query.is('opening_id', null))
+
+export default function Layer1Capture({ jobId, openingId = null }) {
   const online = useOnlineStatus()
   const [capturing, setCapturing] = useState(false)
   const [sessionKey, setSessionKey] = useState(0)
   const [editing, setEditing] = useState(null) // null | 'new' | measurement
 
-  const { data: measurements, error, loading, reload } = useQuery(`measurements:${jobId}`, async () =>
-    must(await supabase.from('measurements').select('*').eq('job_id', jobId).order('created_at')),
+  const { data: measurements, error, loading, reload } = useQuery(`measurements:${jobId}:${openingId}`, async () =>
+    must(await forOpening(supabase.from('measurements').select('*').eq('job_id', jobId), openingId).order('created_at')),
   )
-  const { data: photos, reload: reloadPhotos } = useQuery(`layer1-photos:${jobId}`, async () =>
+  const { data: photos, reload: reloadPhotos } = useQuery(`layer1-photos:${jobId}:${openingId}`, async () =>
     must(
-      await supabase
-        .from('job_photos')
-        .select('*')
-        .eq('job_id', jobId)
-        .eq('layer', 1)
-        .order('created_at', { ascending: false }),
+      await forOpening(supabase.from('job_photos').select('*').eq('job_id', jobId).eq('layer', 1), openingId).order('created_at', {
+        ascending: false,
+      }),
     ),
   )
 
@@ -477,6 +478,7 @@ export default function Layer1Capture({ jobId }) {
       <CaptureSession
         key={sessionKey}
         jobId={jobId}
+        openingId={openingId}
         onCancel={() => setCapturing(false)}
         onDone={() => {
           reload()
@@ -563,6 +565,7 @@ export default function Layer1Capture({ jobId }) {
       {editing && (
         <MeasurementForm
           jobId={jobId}
+          openingId={openingId}
           measurement={editing === 'new' ? null : editing}
           onClose={() => setEditing(null)}
           onSaved={reload}

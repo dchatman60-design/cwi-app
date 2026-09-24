@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { MailIcon, MapIcon, PhoneIcon, PlusIcon } from '../../components/icons'
 import { Badge, Button, Card, EmptyState, ErrorMessage, PageHeader, Spinner } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
-import { must, useQuery } from '../../lib/useQuery'
+import { useAuth } from '../../context/auth'
+import { must, mustDelete, useQuery } from '../../lib/useQuery'
 import JobForm from '../Jobs/JobForm'
 import { jobStatusLabel, jobStatusTone } from '../Jobs/jobStatus'
 import LinkedTasks from '../Tasks/LinkedTasks'
@@ -26,6 +27,8 @@ function ContactButton({ href, label, children }) {
 
 export default function ClientDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const { isAdmin } = useAuth()
   const [editing, setEditing] = useState(false)
   const [addingJob, setAddingJob] = useState(false)
 
@@ -49,6 +52,23 @@ export default function ClientDetail() {
     if (updateError) return toast(updateError.message, 'error')
     toast(next ? 'Client reactivated' : 'Client marked inactive')
     reload()
+  }
+
+  async function handleDelete() {
+    const jobCount = jobs?.length || 0
+    if (
+      !window.confirm(
+        `Delete ${client.client_name}?${jobCount ? ` Their ${jobCount} job${jobCount === 1 ? '' : 's'} will be kept but no longer linked to a client.` : ''} Linked tasks are kept. This can't be undone.`,
+      )
+    )
+      return
+    try {
+      mustDelete(await supabase.from('clients').delete().eq('id', id).select('id'), 'this client')
+      toast('Client deleted')
+      navigate('/clients', { replace: true })
+    } catch (err) {
+      toast(err.message, 'error')
+    }
   }
 
   if (loading && !client) return <Spinner />
@@ -143,6 +163,11 @@ export default function ClientDetail() {
         <Button variant="secondary" className="w-full" onClick={toggleActive}>
           {client.is_active === false ? 'Reactivate client' : 'Mark client inactive'}
         </Button>
+        {isAdmin && (
+          <Button variant="dangerOutline" className="mt-3 w-full" onClick={handleDelete}>
+            Delete client
+          </Button>
+        )}
       </div>
 
       {editing && <ClientForm client={client} onClose={() => setEditing(false)} onSaved={reload} />}
