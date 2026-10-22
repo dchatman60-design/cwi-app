@@ -7,13 +7,14 @@ import { must, mustDelete, useQuery } from '../../lib/useQuery'
 import Layer1Capture from '../Drawing/Layer1Capture'
 import Layer2Annotation from '../Drawing/Layer2Annotation'
 import Layer3Diagram from '../Drawing/Layer3Diagram'
+import JobMedia from '../Media/JobMedia'
 import OpeningForm from './OpeningForm'
 import OpeningProducts from './OpeningProducts'
 import { openingTypeLabel } from './openings'
 
 const TABS = [
   { id: 'measure', label: 'Measure', hint: 'Layer 1' },
-  { id: 'photos', label: 'Photos', hint: 'Layer 2' },
+  { id: 'photos', label: 'Photos', hint: 'Videos · mark-ups' },
   { id: 'diagram', label: 'Diagram', hint: 'Layer 3' },
   { id: 'products', label: 'Products' },
 ]
@@ -101,8 +102,21 @@ export default function OpeningDetail() {
       </div>
 
       <div className="px-4 pt-4">
-        {tab === 'measure' && <Layer1Capture jobId={jobId} openingId={openingId} />}
-        {tab === 'photos' && <Layer2Annotation jobId={jobId} openingId={openingId} />}
+        {tab === 'measure' && (
+          <Layer1Capture jobId={jobId} openingId={openingId} opening={opening} onOpeningChanged={reload} />
+        )}
+        {tab === 'photos' && (
+          <div className="space-y-6">
+            <section>
+              <h2 className="mb-2 text-sm font-semibold tracking-wide text-slate-500 uppercase">Photos & videos</h2>
+              <JobMedia jobId={jobId} openingId={openingId} />
+            </section>
+            <section>
+              <h2 className="mb-2 text-sm font-semibold tracking-wide text-slate-500 uppercase">Marked-up photos & sketches</h2>
+              <Layer2Annotation jobId={jobId} openingId={openingId} />
+            </section>
+          </div>
+        )}
         {tab === 'diagram' && <Layer3Diagram job={job} opening={opening} />}
         {tab === 'products' && <OpeningProducts job={job} opening={opening} />}
       </div>

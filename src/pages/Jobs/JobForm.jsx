@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Button, ErrorMessage, Field, inputClass, Segmented, Sheet } from '../../components/ui'
+import { Button, ErrorMessage, Field, inputClass, Sheet } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { must, useQuery } from '../../lib/useQuery'
-import { JOB_STATUSES } from './jobStatus'
+import { DEFAULT_JOB_STATUS, JOB_STATUSES, normalizeJobStatus } from './jobStatus'
 
 /** Add or edit a job. Mount only while open. onSaved receives the saved row. */
 export default function JobForm({ job, defaults = {}, onClose, onSaved }) {
@@ -11,7 +11,7 @@ export default function JobForm({ job, defaults = {}, onClose, onSaved }) {
     job_name: job?.job_name ?? '',
     site_address: job?.site_address ?? '',
     client_id: job?.client_id ?? defaults.client_id ?? '',
-    status: job?.status ?? 'draft',
+    status: job ? normalizeJobStatus(job.status) : (defaults.status ?? DEFAULT_JOB_STATUS),
     notes: job?.notes ?? '',
   }))
   const [saving, setSaving] = useState(false)
@@ -92,10 +92,15 @@ export default function JobForm({ job, defaults = {}, onClose, onSaved }) {
             ))}
           </select>
         </Field>
-        <div>
-          <span className="mb-1 block text-sm font-medium text-slate-700">Status</span>
-          <Segmented options={JOB_STATUSES} value={form.status} onChange={set('status')} />
-        </div>
+        <Field label="Status" hint="Where the job sits on the board.">
+          <select className={inputClass} value={form.status} onChange={set('status')}>
+            {JOB_STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </Field>
         <Field label="Notes">
           <textarea className={`${inputClass} min-h-24`} value={form.notes} onChange={set('notes')} />
         </Field>

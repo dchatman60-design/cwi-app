@@ -5,11 +5,13 @@ import { getPendingTasks, PENDING_CHANGED_EVENT } from '../lib/offlineQueue'
 import { syncPendingTasks } from '../lib/tasks'
 import { toast } from '../lib/toast'
 import { useOnlineStatus } from '../lib/useOnlineStatus'
-import { ClientsIcon, JobsIcon, OfflineIcon, QuoteIcon, SearchIcon, TasksIcon, UsersIcon } from './icons'
+import { CalendarIcon, ClientsIcon, JobsIcon, OfflineIcon, QuoteIcon, SearchIcon, TasksIcon, UsersIcon } from './icons'
 import { Spinner, Toaster } from './ui'
+import UploadStatus from './UploadStatus'
 
 const NAV_ITEMS = [
   { to: '/jobs', label: 'Jobs', Icon: JobsIcon },
+  { to: '/schedule', label: 'Schedule', Icon: CalendarIcon },
   { to: '/search', label: 'Products', Icon: SearchIcon },
   { to: '/quotes', label: 'Quotes', Icon: QuoteIcon },
   { to: '/tasks', label: 'Tasks', Icon: TasksIcon },
@@ -104,6 +106,7 @@ export default function Layout() {
             </span>
           </div>
         )}
+        <UploadStatus />
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] print:pb-0">

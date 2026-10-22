@@ -31,7 +31,7 @@ export default function AddToQuoteSheet({ product, onClose }) {
     ),
   )
   const { data: jobs } = useQuery('add-to-quote-jobs', async () =>
-    must(await supabase.from('jobs').select('id, job_name').neq('status', 'complete').order('created_at', { ascending: false })),
+    must(await supabase.from('jobs').select('id, job_name').not('status', 'in', '(complete,lost)').order('created_at', { ascending: false })),
   )
 
   const remembered = lastQuoteId()

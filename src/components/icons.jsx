@@ -85,6 +85,33 @@ export const BackIcon = (p) => (
   </Icon>
 )
 
+export const ForwardIcon = (p) => (
+  <Icon {...p}>
+    <path d="m9 5 7 7-7 7" />
+  </Icon>
+)
+
+export const CalendarIcon = (p) => (
+  <Icon {...p}>
+    <rect x="4" y="5" width="16" height="15" rx="2" />
+    <path d="M4 10h16M9 3v4M15 3v4M8 14h1M12 14h1M16 14h1M8 17h1M12 17h1" />
+  </Icon>
+)
+
+export const BoardIcon = (p) => (
+  <Icon {...p}>
+    <rect x="3.5" y="4" width="5" height="16" rx="1.5" />
+    <rect x="9.5" y="4" width="5" height="11" rx="1.5" />
+    <rect x="15.5" y="4" width="5" height="7" rx="1.5" />
+  </Icon>
+)
+
+export const ListIcon = (p) => (
+  <Icon {...p}>
+    <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
+  </Icon>
+)
+
 export const CloseIcon = (p) => (
   <Icon {...p}>
     <path d="M6 6l12 12M18 6 6 18" />

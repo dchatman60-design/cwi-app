@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { MapIcon } from '../../components/icons'
-import { Badge, Button, Card, EmptyState, ErrorMessage, PageHeader, Spinner } from '../../components/ui'
+import { Button, Card, EmptyState, ErrorMessage, PageHeader, Spinner } from '../../components/ui'
 import { useAuth } from '../../context/auth'
 import { deleteJob } from '../../lib/jobs'
 import { supabase } from '../../lib/supabase'
@@ -10,12 +10,16 @@ import { must, useQuery } from '../../lib/useQuery'
 import JobNotes from '../Notes/JobNotes'
 import OpeningsTab from '../Openings/OpeningsTab'
 import JobQuotes from '../Quotes/JobQuotes'
+import JobSchedule from '../Schedule/JobSchedule'
+import JobMedia from '../Media/JobMedia'
 import LinkedTasks from '../Tasks/LinkedTasks'
 import JobForm from './JobForm'
-import { jobStatusLabel, jobStatusTone } from './jobStatus'
+import { JOB_STATUSES, jobStatusLabel, normalizeJobStatus } from './jobStatus'
 
 const TABS = [
   { id: 'openings', label: 'Openings' },
+  { id: 'photos', label: 'Photos' },
+  { id: 'schedule', label: 'Schedule' },
   { id: 'notes', label: 'Notes' },
   { id: 'tasks', label: 'Tasks' },
   { id: 'quotes', label: 'Quotes' },
@@ -30,14 +34,25 @@ export default function JobDetail() {
   const [deleting, setDeleting] = useState(false)
   const tab = TABS.some((t) => t.id === params.get('tab')) ? params.get('tab') : 'openings'
 
-  const { data: job, error, loading, reload } = useQuery(`job:${id}`, async () =>
+  const [savingStatus, setSavingStatus] = useState(false)
+  const { data: job, error, loading, reload, mutate } = useQuery(`job:${id}`, async () =>
     must(await supabase.from('jobs').select('*, client:client_id(id, client_name)').eq('id', id).maybeSingle()),
   )
+
+  async function changeStatus(status) {
+    setSavingStatus(true)
+    const updated_at = new Date().toISOString()
+    const { error: updateError } = await supabase.from('jobs').update({ status, updated_at }).eq('id', id)
+    setSavingStatus(false)
+    if (updateError) return toast(updateError.message, 'error')
+    mutate((j) => ({ ...j, status, updated_at }))
+    toast(`Moved to ${jobStatusLabel(status)}`)
+  }
 
   async function handleDelete() {
     if (
       !window.confirm(
-        `Delete "${job.job_name}" and everything in it — openings, measurements, photos, notes, attachments and quotes? Linked tasks are kept. This can't be undone.`,
+        `Delete "${job.job_name}" and everything in it — openings, measurements, photos and videos, notes, attachments, quotes and its schedule (hours logged)? Linked tasks are kept. This can't be undone.`,
       )
     )
       return
@@ -69,10 +84,21 @@ export default function JobDetail() {
       />
 
       <Card className="mx-4 divide-y divide-slate-100">
-        <div className="flex items-center justify-between px-4 py-3">
+        <label className="flex items-center justify-between gap-3 px-4 py-2">
           <span className="text-sm text-slate-500">Status</span>
-          <Badge tone={jobStatusTone(job.status)}>{jobStatusLabel(job.status)}</Badge>
-        </div>
+          <select
+            className="min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-2 text-sm font-semibold text-slate-800"
+            value={normalizeJobStatus(job.status)}
+            onChange={(e) => changeStatus(e.target.value)}
+            disabled={savingStatus}
+          >
+            {JOB_STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
         {job.client && (
           <Link to={`/clients/${job.client.id}`} className="flex min-h-12 items-center justify-between gap-3 px-4 py-2">
             <span className="text-sm text-slate-500">Client</span>
@@ -104,7 +130,7 @@ export default function JobDetail() {
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => setParams({ tab: t.id }, { replace: true })}
-            className={`flex min-h-12 flex-1 items-center justify-center border-b-2 text-sm font-semibold ${
+            className={`flex min-h-12 min-w-0 flex-1 items-center justify-center border-b-2 text-[13px] font-semibold ${
               tab === t.id ? 'border-blue-700 text-blue-700' : 'border-transparent text-slate-500'
             }`}
           >
@@ -115,6 +141,8 @@ export default function JobDetail() {
 
       <div className="px-4 pt-4">
         {tab === 'openings' && <OpeningsTab job={job} />}
+        {tab === 'photos' && <JobMedia jobId={id} />}
+        {tab === 'schedule' && <JobSchedule jobId={id} onJobChanged={reload} />}
         {tab === 'notes' && <JobNotes jobId={id} />}
         {tab === 'tasks' && <LinkedTasks jobId={id} />}
         {tab === 'quotes' && <JobQuotes jobId={id} />}

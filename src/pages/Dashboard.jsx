@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import {
+  BoardIcon,
+  CalendarIcon,
   ClientsIcon,
   JobsIcon,
   LogoutIcon,
@@ -9,14 +11,18 @@ import {
   UsersIcon,
 } from '../components/icons'
 import { Badge, Card } from '../components/ui'
+import { compareEntries, entryCoversDate, fetchEntries } from '../lib/schedule'
+import EntryCard from './Schedule/EntryCard'
 import { useAuth } from '../context/auth'
-import { formatShortDate, formatTime } from '../lib/format'
+import { formatShortDate, formatTime, todayISO } from '../lib/format'
 import { supabase } from '../lib/supabase'
 import { ACTIVE_STATUSES, isOverdue, TASK_SELECT } from '../lib/tasks'
 import { must, useQuery } from '../lib/useQuery'
 
 const MODULES = [
   { to: '/jobs', label: 'Jobs & Drawings', note: 'Measure, annotate, diagram', Icon: JobsIcon },
+  { to: '/schedule', label: 'Schedule', note: 'Calendar & hours on site', Icon: CalendarIcon },
+  { to: '/jobs?view=board', label: 'Job Board', note: 'Proposal to complete', Icon: BoardIcon },
   { to: '/search', label: 'Product Search', note: 'Pemko catalog', Icon: SearchIcon },
   { to: '/quotes', label: 'Quotes', note: 'Takeoffs & proposals', Icon: QuoteIcon },
   { to: '/tasks', label: 'Tasks', note: 'Follow-ups & reminders', Icon: TasksIcon },
@@ -54,10 +60,15 @@ export default function Dashboard() {
     const { count, error } = await supabase
       .from('jobs')
       .select('id', { count: 'exact', head: true })
-      .eq('status', 'active')
+      .in('status', ['scheduled', 'in_progress'])
     if (error) throw error
     return count
   })
+
+  const today = todayISO()
+  const { data: todayEntries } = useQuery(`dashboard-schedule:${today}`, async () =>
+    (await fetchEntries(today, today)).filter((e) => entryCoversDate(e, today)).sort(compareEntries),
+  )
 
   const overdueCount = myTasks?.filter(isOverdue).length
   const firstName = profile.full_name?.split(' ')[0] || 'there'
@@ -77,8 +88,26 @@ export default function Dashboard() {
           tone={overdueCount ? 'text-red-600' : 'text-slate-900'}
           to="/tasks"
         />
-        <Stat label="Active jobs" value={activeJobs} to="/jobs" />
+        <Stat label="Jobs underway" value={activeJobs} to="/jobs?view=board" />
       </div>
+
+      {todayEntries?.length > 0 && (
+        <section className="mt-6">
+          <h2 className="mb-2 flex items-center justify-between text-sm font-semibold tracking-wide text-slate-500 uppercase">
+            Today
+            <Link to="/schedule" className="min-h-11 content-center text-xs font-semibold text-blue-700 normal-case">
+              Full schedule
+            </Link>
+          </h2>
+          <div className="space-y-2">
+            {todayEntries.map((e) => (
+              <Link key={e.id} to={e.job_id ? `/jobs/${e.job_id}?tab=schedule` : '/schedule'} className="block">
+                <EntryCard entry={e} />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {myTasks?.length > 0 && (
         <section className="mt-6">

@@ -16,6 +16,7 @@ const ClientList = lazy(() => import('./pages/Clients/ClientList'))
 const ClientDetail = lazy(() => import('./pages/Clients/ClientDetail'))
 const TaskList = lazy(() => import('./pages/Tasks/TaskList'))
 const TaskDetail = lazy(() => import('./pages/Tasks/TaskDetail'))
+const ScheduleCalendar = lazy(() => import('./pages/Schedule/ScheduleCalendar'))
 const UserList = lazy(() => import('./pages/Admin/UserList'))
 const MeasureCard = lazy(() => import('./pages/Drawing/MeasureCard'))
 
@@ -80,6 +81,7 @@ export default function App() {
           <Route path="clients/:id" element={<ClientDetail />} />
           <Route path="tasks" element={<TaskList />} />
           <Route path="tasks/:id" element={<TaskDetail />} />
+          <Route path="schedule" element={<ScheduleCalendar />} />
           <Route path="measure-card" element={<MeasureCard />} />
           <Route
             path="admin/users"

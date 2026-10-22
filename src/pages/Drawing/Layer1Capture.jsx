@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertIcon, CameraIcon, PlusIcon, TrashIcon } from '../../components/icons'
+import { AlertIcon, CameraIcon, EditIcon, PlusIcon, TrashIcon } from '../../components/icons'
 import SignedImage from '../../components/SignedImage'
 import { Badge, Button, Card, EmptyState, ErrorMessage, Field, inputClass, Segmented, Sheet, Spinner } from '../../components/ui'
 import { formatMeasurement, formatPlusMinus } from '../../lib/format'
@@ -19,6 +19,7 @@ import MoveToOpeningSheet from '../Openings/MoveToOpeningSheet'
 import MeasurementFields from './MeasurementFields'
 import { hasValue, MEASUREMENT_PARTS, partLabel, sortByPart, splitValue, toMeasurementRow, UNITS } from './measurementParts'
 import ReferencePicker from './ReferencePicker'
+import TapeSheet from './TapeSheet'
 import { describeReference, loadReference, resolveReference, saveReference } from './referenceCards'
 import TraceMeasure from './TraceMeasure'
 
@@ -450,9 +451,10 @@ function MeasurementForm({ jobId, openingId, measurement, onClose, onSaved }) {
 /** Rows for this opening (or, with no opening, the job's unassigned rows). */
 const forOpening = (query, openingId) => (openingId ? query.eq('opening_id', openingId) : query.is('opening_id', null))
 
-export default function Layer1Capture({ jobId, openingId = null }) {
+export default function Layer1Capture({ jobId, openingId = null, opening = null, onOpeningChanged }) {
   const online = useOnlineStatus()
   const [capturing, setCapturing] = useState(false)
+  const [taping, setTaping] = useState(false)
   const [sessionKey, setSessionKey] = useState(0)
   const [editing, setEditing] = useState(null) // null | 'new' | measurement
   const [moving, setMoving] = useState(false)
@@ -495,20 +497,31 @@ export default function Layer1Capture({ jobId, openingId = null }) {
 
   return (
     <div className="space-y-4">
-      <Button className="min-h-20 w-full rounded-2xl text-lg" disabled={!online} onClick={() => setCapturing(true)}>
-        <CameraIcon className="size-8" />
-        Start Measurement Capture
+      {opening && (
+        <Button className="min-h-20 w-full rounded-2xl text-lg" onClick={() => setTaping(true)}>
+          <EditIcon className="size-7" />
+          Enter tape measurements
+        </Button>
+      )}
+      <Button
+        variant={opening ? 'secondary' : 'primary'}
+        className={opening ? 'w-full' : 'min-h-20 w-full rounded-2xl text-lg'}
+        disabled={!online}
+        onClick={() => setCapturing(true)}
+      >
+        <CameraIcon className={opening ? 'size-5' : 'size-8'} />
+        {opening ? 'Measure from a photo (beta)' : 'Start Measurement Capture'}
       </Button>
-      {!online && <p className="text-center text-sm text-amber-800">Measurement capture needs an internet connection.</p>}
-      <Button variant="secondary" className="w-full" onClick={() => setEditing('new')}>
-        <PlusIcon className="size-5" /> Add entry without a photo
+      {!online && <p className="text-center text-sm text-amber-800">Measuring from a photo needs an internet connection.</p>}
+      <Button variant="ghost" className="w-full" onClick={() => setEditing('new')}>
+        <PlusIcon className="size-5" /> Add a single entry
       </Button>
 
       <ErrorMessage error={error} />
       {loading && !measurements && <Spinner />}
       {measurements && measurements.length === 0 && (
         <EmptyState title="No measurements yet">
-          Photograph the opening with a measurement card beside it and trace it, or add entries by hand.
+          Enter the tape measurements, or measure from a photo with a reference card beside the opening.
         </EmptyState>
       )}
 
@@ -577,6 +590,18 @@ export default function Layer1Capture({ jobId, openingId = null }) {
           onMoved={() => {
             reload()
             reloadPhotos()
+          }}
+        />
+      )}
+      {taping && (
+        <TapeSheet
+          jobId={jobId}
+          opening={opening}
+          measurements={measurements}
+          onClose={() => setTaping(false)}
+          onSaved={() => {
+            reload()
+            onOpeningChanged?.()
           }}
         />
       )}
