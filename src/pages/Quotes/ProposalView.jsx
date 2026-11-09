@@ -39,7 +39,8 @@ function formatDate(iso) {
 /**
  * Client-facing proposal laid out like CWI's printed one: letterhead, TO / RE,
  * scope of work, one Total Job price (materials with markup, services and
- * install labor — none of it itemized), sign-off and the acceptance block.
+ * install labor — none of it itemized), payment terms (50% deposit on
+ * signing, 50% on completion), sign-off and the acceptance block.
  * Scope lists each door's work ("Furnish and install weatherstripping"…),
  * grouping doors with the same scope ("French Doors 1–8"). Products,
  * quantities and diagrams show only when "Show details" is on; no per-door
@@ -52,6 +53,9 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
   const re = addressLines(quote.job?.site_address)
   const date = formatDate(quote.proposal_date || (quote.created_at || '').slice(0, 10))
   const showDetails = Boolean(quote.show_details)
+  // 50% on signing, 50% on completion — the balance takes any odd cent
+  const deposit = Math.round(Number(totals.total || 0) * 50) / 100
+  const balance = Math.round((Number(totals.total || 0) - deposit) * 100) / 100
 
   // A door with no scope set yet falls back to what's on its lines
   const fallbackScope = (items) => [
@@ -105,13 +109,13 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
           </div>
         </header>
 
-        <div className="mt-5 flex flex-wrap items-baseline justify-between gap-2">
+        <div className="mt-5 flex flex-wrap items-baseline justify-between gap-2 print:mt-3">
           <h1 className="text-xl font-bold tracking-wide uppercase">Weatherstrip Proposal</h1>
           <div className="font-bold">DATE: {date}</div>
         </div>
 
         {/* TO / RE */}
-        <section className="mt-5 grid gap-4 sm:grid-cols-2">
+        <section className="mt-5 grid gap-4 sm:grid-cols-2 print:mt-3">
           <div className="flex gap-4">
             <div className="w-10 shrink-0 font-bold">TO:</div>
             <div className="min-w-0 font-semibold break-words">
@@ -129,14 +133,14 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
         </section>
 
         {/* Scope of work */}
-        <section className="mt-8">
+        <section className="mt-8 print:mt-5">
           <h2 className="font-bold uppercase">Scope of work:</h2>
           {/* The general line repeats the per-door scope, so it shows only when written for this quote */}
           {(quote.scope_intro || !groups.length) && (
             <p className="mt-3 font-semibold">{quote.scope_intro || DEFAULT_SCOPE_INTRO}</p>
           )}
 
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 space-y-4 print:mt-2 print:space-y-2">
             {groups.map((g) => (
               <div key={g.key} className="break-inside-avoid pl-4 sm:pl-6">
                 <div className="font-semibold break-words">
@@ -194,23 +198,41 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
           </div>
         </section>
 
-        <div className="mt-8 text-lg font-bold">Total Job: {currency(totals.total)}</div>
+        <div className="mt-8 text-lg font-bold print:mt-4">Total Job: {currency(totals.total)}</div>
+
+        {/* Payment terms: half on signing, half on completion */}
+        <section className="mt-4 max-w-md break-inside-avoid print:mt-2">
+          <h2 className="font-bold uppercase">Payment terms:</h2>
+          <dl className="mt-2 space-y-1">
+            <div className="flex justify-between gap-4">
+              <dt>50% deposit due upon signing</dt>
+              <dd className="font-semibold tabular-nums">{currency(deposit)}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>50% balance due upon completion of work</dt>
+              <dd className="font-semibold tabular-nums">{currency(balance)}</dd>
+            </div>
+          </dl>
+        </section>
 
         {quote.notes && <p className="mt-5 text-sm whitespace-pre-wrap">{quote.notes}</p>}
 
-        <div className="mt-10 font-semibold break-inside-avoid">
+        <div className="mt-10 font-semibold break-inside-avoid print:mt-5">
           <div>Thank You,</div>
           <div>{COMPANY.signer}</div>
           <div>{COMPANY.name.replace(',', '')}</div>
         </div>
 
         {/* Acceptance */}
-        <footer className="mt-12 space-y-5 border-t border-slate-300 pt-5 text-base break-inside-avoid">
+        <footer className="mt-12 space-y-5 border-t border-slate-300 pt-5 text-base break-inside-avoid print:mt-6 print:space-y-4 print:pt-3">
           <p>
             <span className="font-bold">{COMPANY.name}</span> is ordered to install the above. When signed by the
-            purchaser, this becomes a contract in the amount of ${' '}
-            <span className="inline-block w-32 border-b border-slate-700 align-bottom" /> to be paid upon completion of
-            work.
+            purchaser, this becomes a contract in the amount of{' '}
+            <span className="inline-block min-w-32 border-b border-slate-700 px-1 text-center font-semibold">
+              {currency(totals.total)}
+            </span>
+            , to be paid 50% upon signing ({currency(deposit)}) and the remaining 50% upon completion of work (
+            {currency(balance)}).
           </p>
           <div className="grid gap-5 sm:grid-cols-[1fr_17rem]">
             <div className="flex items-end gap-2">
