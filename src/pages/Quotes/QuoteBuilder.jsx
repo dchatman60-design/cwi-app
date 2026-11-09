@@ -366,7 +366,7 @@ export default function QuoteBuilder() {
                 onChange={(e) => e.target.value && updateQuote({ proposal_date: e.target.value })}
               />
             </Field>
-            <Field label="Scope of work line">
+            <Field label="Scope of work line" hint="Optional — each door's own scope is listed on the proposal.">
               <input
                 key={quote.scope_intro ?? ''}
                 className={inputClass}

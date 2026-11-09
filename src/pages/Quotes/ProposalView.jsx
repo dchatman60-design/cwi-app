@@ -5,7 +5,8 @@ import { Button } from '../../components/ui'
 import { COMPANY, DEFAULT_SCOPE_INTRO } from '../../lib/company'
 import { currency, parseLocalDate, trimNumber } from '../../lib/format'
 import { hasRealDescription } from '../Search/catalog'
-import { isService, linesSubtotal, quoteTitle, SERVICE_UNITS } from './quotes'
+import { groupByScope } from '../Openings/scope'
+import { isService, quoteTitle, SERVICE_UNITS } from './quotes'
 
 function qtyLabel(item) {
   const qty = trimNumber(item.quantity)
@@ -37,11 +38,12 @@ function formatDate(iso) {
 
 /**
  * Client-facing proposal laid out like CWI's printed one: letterhead, TO / RE,
- * scope of work with one priced line per door (plus any general lines), total,
- * sign-off and the acceptance block. Each line's price includes its materials
- * with markup, its service lines and its share of the install labor — markup
- * and labor are never itemized. Materials, quantities and diagrams show only
- * when "Show details" is on; unit costs never do.
+ * scope of work, one Total Job price (materials with markup, services and
+ * install labor — none of it itemized), sign-off and the acceptance block.
+ * Scope lists each door's work ("Furnish and install weatherstripping"…),
+ * grouping doors with the same scope ("French Doors 1–8"). Products,
+ * quantities and diagrams show only when "Show details" is on; no per-door
+ * prices or unit costs ever do.
  */
 export default function ProposalView({ quote, sections, totals, diagramsByOpening, onBack }) {
   const client = quote.job?.client
@@ -51,41 +53,25 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
   const date = formatDate(quote.proposal_date || (quote.created_at || '').slice(0, 10))
   const showDetails = Boolean(quote.show_details)
 
-  // One line per opening; lines not tied to an opening are listed one by one
-  const lines = []
-  for (const section of sections) {
-    if (!section.items.length) continue
-    if (section.opening) {
-      lines.push({ key: section.key, label: section.opening.opening_name, amount: linesSubtotal(quote, section.items), section })
-    } else {
-      for (const item of section.items) {
-        lines.push({
-          key: item.id,
-          label: isService(item) ? item.description : `Pemko ${item.sku}${hasRealDescription(item) ? ` — ${item.description}` : ''}`,
-          qty: qtyLabel(item),
-          amount: linesSubtotal(quote, [item]),
-        })
-      }
-    }
-  }
-  // Install labor is built into the line prices (in proportion to each line),
-  // never shown as its own line; the markup is already in each line.
-  if (totals.labor > 0) {
-    const base = lines.reduce((sum, l) => sum + l.amount, 0)
-    if (!lines.length || base <= 0) {
-      lines.splice(0, lines.length, { key: 'install', label: 'Installation', amount: totals.labor })
-    } else {
-      let given = 0
-      lines.forEach((line, i) => {
-        const share =
-          i === lines.length - 1
-            ? Math.round((totals.labor - given) * 100) / 100
-            : Math.round(((totals.labor * line.amount) / base) * 100) / 100
-        given += share
-        line.amount += share
-      })
-    }
-  }
+  // A door with no scope set yet falls back to what's on its lines
+  const fallbackScope = (items) => [
+    ...new Set(
+      items.map((item) =>
+        isService(item) ? item.description : `Furnish and install ${hasRealDescription(item) ? item.description : `Pemko ${item.sku}`}`,
+      ),
+    ),
+  ]
+  const doorSections = sections.filter((sec) => sec.opening && (sec.items.length || (sec.opening.scope_items || []).length))
+  const doors = doorSections.map((sec) => ({
+    ...sec.opening,
+    scope_items: (sec.opening.scope_items || []).length ? sec.opening.scope_items : fallbackScope(sec.items),
+    section: sec,
+  }))
+  // With details on, every door is listed on its own with its products
+  const groups = showDetails
+    ? doors.map((d) => ({ key: d.id, label: d.opening_name, items: d.scope_items, openings: [d] }))
+    : groupByScope(doors)
+  const generalItems = sections.find((sec) => !sec.opening)?.items || []
 
   return (
     <div className="px-4 pt-4 print:p-0">
@@ -145,44 +131,66 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
         {/* Scope of work */}
         <section className="mt-8">
           <h2 className="font-bold uppercase">Scope of work:</h2>
-          <p className="mt-3 font-semibold">{quote.scope_intro || DEFAULT_SCOPE_INTRO}</p>
+          {/* The general line repeats the per-door scope, so it shows only when written for this quote */}
+          {(quote.scope_intro || !groups.length) && (
+            <p className="mt-3 font-semibold">{quote.scope_intro || DEFAULT_SCOPE_INTRO}</p>
+          )}
 
-          <div className="mt-4 space-y-3">
-            {lines.map((line) => {
-              const diagram = showDetails && line.section?.opening && diagramsByOpening[line.section.opening.id]
-              return (
-                <div key={line.key} className="break-inside-avoid">
-                  <div className="flex items-baseline justify-between gap-4 pl-4 sm:pl-6">
-                    <span className="min-w-0 font-semibold break-words">
-                      {showDetails && line.qty ? `${line.qty} × ` : ''}
-                      {line.label}
-                    </span>
-                    <span className="shrink-0 font-semibold tabular-nums">{currency(line.amount)}</span>
-                  </div>
-                  {showDetails && line.section && (
-                    <ul className="mt-1 space-y-0.5 pl-8 text-sm text-slate-600 sm:pl-10">
-                      {line.section.items.map((item) => (
-                        <li key={item.id} className="break-words">
-                          {qtyLabel(item) && <span className="mr-1">{qtyLabel(item)} ×</span>}
-                          {isService(item) ? (
-                            item.description
-                          ) : (
-                            <>
-                              Pemko {item.sku}
-                              {hasRealDescription(item) && ` — ${item.description}`}
-                            </>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {diagram && (
-                    <SignedImage layer={3} path={diagram} className="mt-2 ml-8 w-[calc(100%-2rem)] rounded border border-slate-200 object-contain" />
-                  )}
+          <div className="mt-4 space-y-4">
+            {groups.map((g) => (
+              <div key={g.key} className="break-inside-avoid pl-4 sm:pl-6">
+                <div className="font-semibold break-words">
+                  {g.label}
+                  {g.openings.length > 1 && <span className="font-normal text-slate-600"> ({g.openings.length} doors)</span>}
                 </div>
-              )
-            })}
-            {!lines.length && <p className="pl-6 text-sm text-slate-500 italic">No priced lines yet.</p>}
+                {g.items.length > 0 && (
+                  <ul className="mt-1 list-disc space-y-0.5 pl-6">
+                    {g.items.map((line) => (
+                      <li key={line} className="break-words">
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {showDetails &&
+                  g.openings.map((d) =>
+                    d.section.items.length ? (
+                      <ul key={d.id} className="mt-1 space-y-0.5 pl-6 text-sm text-slate-600">
+                        {d.section.items.map((item) => (
+                          <li key={item.id} className="break-words">
+                            {qtyLabel(item) && <span className="mr-1">{qtyLabel(item)} ×</span>}
+                            {isService(item) ? item.description : `Pemko ${item.sku}${hasRealDescription(item) ? ` — ${item.description}` : ''}`}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null,
+                  )}
+                {showDetails &&
+                  g.openings.map((d) =>
+                    diagramsByOpening[d.id] ? (
+                      <SignedImage
+                        key={`dia-${d.id}`}
+                        layer={3}
+                        path={diagramsByOpening[d.id]}
+                        className="mt-2 w-full rounded border border-slate-200 object-contain"
+                      />
+                    ) : null,
+                  )}
+              </div>
+            ))}
+            {generalItems.length > 0 && (
+              <div className="break-inside-avoid pl-4 sm:pl-6">
+                {groups.length > 0 && <div className="font-semibold">Also included</div>}
+                <ul className="mt-1 list-disc space-y-0.5 pl-6">
+                  {fallbackScope(generalItems).map((line) => (
+                    <li key={line} className="break-words">
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {!groups.length && !generalItems.length && <p className="pl-6 text-sm text-slate-500 italic">No doors on this quote yet.</p>}
           </div>
         </section>
 

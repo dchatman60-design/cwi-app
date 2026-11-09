@@ -31,7 +31,7 @@ export default function OpeningDetail() {
   const { data: job } = useQuery(`job-summary:${jobId}`, async () =>
     must(await supabase.from('jobs').select('id, job_name, site_address').eq('id', jobId).maybeSingle()),
   )
-  const { data: opening, error, loading, reload } = useQuery(`opening:${openingId}`, async () =>
+  const { data: opening, error, loading, reload, mutate } = useQuery(`opening:${openingId}`, async () =>
     must(await supabase.from('openings').select('*').eq('id', openingId).maybeSingle()),
   )
 
@@ -118,7 +118,9 @@ export default function OpeningDetail() {
           </div>
         )}
         {tab === 'diagram' && <Layer3Diagram job={job} opening={opening} />}
-        {tab === 'products' && <OpeningProducts job={job} opening={opening} />}
+        {tab === 'products' && (
+          <OpeningProducts job={job} opening={opening} onScopeSaved={(scope_items) => mutate((o) => ({ ...o, scope_items }))} />
+        )}
       </div>
 
       <div className="mt-10 px-4">

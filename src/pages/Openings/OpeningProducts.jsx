@@ -11,13 +11,14 @@ import AddProductSheet from '../Quotes/AddProductSheet'
 import QuoteItemRow from '../Quotes/QuoteItemRow'
 import { addQuoteItem, addServiceItem, createQuote, findCurrentQuote, linesSubtotal, QUOTE_STATUSES, quoteTitle } from '../Quotes/quotes'
 import ServiceItemSheet from '../Quotes/ServiceItemSheet'
+import ScopeEditor from './ScopeEditor'
 
 /**
  * Products and work for one opening. Lines live on the job's current quote
  * (the latest one not declined), tagged to this opening — so the quote is
  * always broken out the same way. A draft quote is started if there's none.
  */
-export default function OpeningProducts({ job, opening }) {
+export default function OpeningProducts({ job, opening, onScopeSaved }) {
   const [adding, setAdding] = useState(null) // 'product' | 'service'
 
   const quoteQ = useQuery(`current-quote:${job.id}`, () => findCurrentQuote(job.id))
@@ -88,6 +89,7 @@ export default function OpeningProducts({ job, opening }) {
 
   return (
     <div className="space-y-3">
+      <ScopeEditor key={opening.id} opening={opening} onSaved={onScopeSaved} />
       <ErrorMessage error={quoteQ.error || itemsQ.error} />
       {quote ? (
         <Card className="flex items-center justify-between gap-3 px-4 py-3">
