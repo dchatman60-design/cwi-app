@@ -15,6 +15,12 @@
     overflow-x: clip; /* never scroll sideways */
   }
 
+  @media print {
+    body {
+      background: #fff;
+    }
+  }
+
   /* iOS Safari zooms the page when focusing inputs smaller than 16px */
   input,
   select,

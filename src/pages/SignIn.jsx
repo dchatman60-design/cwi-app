@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { LogoMark } from '../components/Logo'
 import { Button, ErrorMessage, Field, inputClass } from '../components/ui'
 import { supabase } from '../lib/supabase'
 
@@ -58,9 +59,7 @@ export default function SignIn() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6 py-10">
       <div className="mb-8 text-center">
-        <span className="inline-block rounded-lg bg-slate-900 px-3 py-1.5 text-xl font-black text-white">
-          CWI
-        </span>
+        <LogoMark className="mx-auto size-20" />
         <h1 className="mt-4 text-2xl font-bold">CWI Field App</h1>
         <p className="mt-1 text-slate-500">Custom Weatherstrip, Inc.</p>
       </div>

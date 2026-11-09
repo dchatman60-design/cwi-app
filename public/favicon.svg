@@ -1,5 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" fill="#0f172a"/>
-  <text x="256" y="300" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="900" font-size="168" fill="#ffffff" letter-spacing="-4">CWI</text>
-  <rect x="146" y="338" width="220" height="18" rx="9" fill="#3b82f6"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="512" height="512">
+  <rect width="120" height="120" rx="14" fill="#0f172a"/>
+  <rect x="7" y="7" width="106" height="106" rx="9" fill="none" stroke="#ffffff" stroke-width="2"/>
+  <text x="60" y="72" text-anchor="middle" font-family="'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif" font-weight="700" font-size="40" letter-spacing="1" fill="#ffffff">CWI</text>
+  <line x1="30" y1="86" x2="90" y2="86" stroke="#ffffff" stroke-width="1.5"/>
 </svg>

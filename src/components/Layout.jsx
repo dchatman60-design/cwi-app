@@ -8,6 +8,7 @@ import { useOnlineStatus } from '../lib/useOnlineStatus'
 import { CalendarIcon, ClientsIcon, JobsIcon, OfflineIcon, QuoteIcon, SearchIcon, TasksIcon, UsersIcon } from './icons'
 import { Spinner, Toaster } from './ui'
 import UploadStatus from './UploadStatus'
+import { LogoMark } from './Logo'
 
 const NAV_ITEMS = [
   { to: '/jobs', label: 'Jobs', Icon: JobsIcon },
@@ -72,9 +73,7 @@ export default function Layout() {
       <header className="sticky top-0 z-40 bg-slate-900 pt-[env(safe-area-inset-top)] text-white print:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <Link to="/" className="flex min-h-11 items-center gap-2">
-            <span className="rounded-md bg-white px-1.5 py-0.5 text-sm font-black tracking-tight text-slate-900">
-              CWI
-            </span>
+            <LogoMark inverted className="size-9" />
             <span className="font-semibold">Field App</span>
           </Link>
           {isAdmin && (

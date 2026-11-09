@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PlusIcon } from '../../components/icons'
 import NumberInput from '../../components/NumberInput'
 import { Badge, Button, Card, EmptyState, ErrorMessage, Field, inputClass, PageHeader, Segmented, Spinner } from '../../components/ui'
+import { DEFAULT_SCOPE_INTRO } from '../../lib/company'
 import { currency, formatMeasurement, trimNumber } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
@@ -356,6 +357,50 @@ export default function QuoteBuilder() {
             value={Number(quote.day_rate)}
             onChange={(day_rate) => updateQuote({ day_rate })}
           />
+          <div className="grid grid-cols-[10rem_1fr] gap-3">
+            <Field label="Proposal date">
+              <input
+                type="date"
+                className={inputClass}
+                value={quote.proposal_date || (quote.created_at || '').slice(0, 10)}
+                onChange={(e) => e.target.value && updateQuote({ proposal_date: e.target.value })}
+              />
+            </Field>
+            <Field label="Scope of work line">
+              <input
+                key={quote.scope_intro ?? ''}
+                className={inputClass}
+                list="scope-intros"
+                defaultValue={quote.scope_intro ?? ''}
+                placeholder={DEFAULT_SCOPE_INTRO}
+                onBlur={(e) =>
+                  e.target.value.trim() !== (quote.scope_intro ?? '') && updateQuote({ scope_intro: e.target.value.trim() || null })
+                }
+              />
+              <datalist id="scope-intros">
+                <option value="Furnish and install weatherstrip" />
+                <option value="Furnish and install door bottoms" />
+                <option value="Furnish and install weatherstrip and door bottoms" />
+                <option value="Rebuild and weatherstrip doors" />
+                <option value="Install customer-supplied weatherstrip" />
+              </datalist>
+            </Field>
+          </div>
+          <label className="flex min-h-11 items-start gap-3 rounded-lg bg-slate-50 px-3 py-2">
+            <input
+              type="checkbox"
+              className="mt-1 size-5 accent-blue-700"
+              checked={Boolean(quote.show_details)}
+              onChange={(e) => updateQuote({ show_details: e.target.checked })}
+            />
+            <span>
+              <span className="font-medium">Show details on the proposal</span>
+              <span className="block text-xs text-slate-500">
+                Off: one price per door, like the printed proposal. On: also lists the Pemko products, quantities and
+                diagrams under each door (never the markup).
+              </span>
+            </span>
+          </label>
           <Field label="Notes (shown on the proposal)">
             <textarea
               key={quote.notes ?? ''}
