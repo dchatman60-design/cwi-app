@@ -14,7 +14,11 @@ export const TASK_TYPES = [
   'Permit or Compliance Check',
   'Job Scheduled — Confirm with Client',
   'Warranty or Callback Visit',
+  'Decline Call — Inform Client',
 ]
+
+/** Created automatically when a job is marked Not accepted / Declined. */
+export const DECLINE_TASK_TYPE = 'Decline Call — Inform Client'
 
 export const PRIORITIES = ['High', 'Medium', 'Low']
 export const PRIORITY_RANK = { High: 0, Medium: 1, Low: 2 }

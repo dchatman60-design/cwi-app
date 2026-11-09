@@ -1,6 +1,7 @@
 /**
  * Job pipeline — the columns of the job board, left to right.
- * `lost` is a closed state shown only when asked for.
+ * `lost` (client said no) and `declined` (we turned the job down) are closed
+ * states, shown on the board only when asked for.
  */
 export const JOB_STATUSES = [
   { value: 'need_proposal', label: 'Need proposal', tone: 'slate' },
@@ -9,13 +10,17 @@ export const JOB_STATUSES = [
   { value: 'scheduled', label: 'Scheduled', tone: 'blue' },
   { value: 'in_progress', label: 'In progress', tone: 'teal' },
   { value: 'complete', label: 'Complete', tone: 'green' },
-  { value: 'lost', label: 'Lost / no sale', tone: 'redSoft' },
+  { value: 'lost', label: 'Lost / no sale', tone: 'slate' },
+  { value: 'declined', label: 'Not accepted / Declined', tone: 'redSoft' },
 ]
 
 export const DEFAULT_JOB_STATUS = 'need_proposal'
 
 /** Statuses that count as open work (not complete or lost). */
 export const OPEN_JOB_STATUSES = ['need_proposal', 'proposal_out', 'ready', 'scheduled', 'in_progress']
+
+/** Closed without the work — hidden from pickers and the board by default. */
+export const CLOSED_JOB_STATUSES = ['lost', 'declined']
 
 // Older rows (before the board) used draft / active
 const LEGACY = { draft: 'need_proposal', active: 'in_progress' }

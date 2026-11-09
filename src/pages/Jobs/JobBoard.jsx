@@ -6,7 +6,7 @@ import { formatHours, sumHours } from '../../lib/schedule'
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { must, useQuery } from '../../lib/useQuery'
-import { JOB_STATUSES, jobStatusLabel, normalizeJobStatus } from './jobStatus'
+import { CLOSED_JOB_STATUSES, JOB_STATUSES, normalizeJobStatus } from './jobStatus'
 
 const COMPLETE_SHOWN = 12
 
@@ -86,12 +86,12 @@ function JobCard({ job, visits, onMove, draggable }) {
  */
 export default function JobBoard({ jobs, onStatusChange }) {
   const [column, setColumn] = useState('need_proposal')
-  const [showLost, setShowLost] = useState(false)
+  const [showClosed, setShowClosed] = useState(false)
   const [showAllComplete, setShowAllComplete] = useState(false)
   const [dragOver, setDragOver] = useState(null)
   const { data: visits, error } = useJobVisits()
 
-  const columns = JOB_STATUSES.filter((s) => s.value !== 'lost' || showLost)
+  const columns = JOB_STATUSES.filter((s) => showClosed || !CLOSED_JOB_STATUSES.includes(s.value))
 
   const jobsIn = (status) => {
     const list = jobs.filter((j) => normalizeJobStatus(j.status) === status)
@@ -108,8 +108,7 @@ export default function JobBoard({ jobs, onStatusChange }) {
   async function move(job, status) {
     if (normalizeJobStatus(job.status) === status) return
     try {
-      await onStatusChange(job, status)
-      toast(`${job.job_name} → ${jobStatusLabel(status)}`)
+      toast(await onStatusChange(job, status))
     } catch (err) {
       toast(err.message, 'error')
     }
@@ -204,13 +203,13 @@ export default function JobBoard({ jobs, onStatusChange }) {
         <input
           type="checkbox"
           className="size-5 accent-blue-700"
-          checked={showLost}
+          checked={showClosed}
           onChange={(e) => {
-            setShowLost(e.target.checked)
-            if (!e.target.checked && column === 'lost') setColumn('need_proposal')
+            setShowClosed(e.target.checked)
+            if (!e.target.checked && CLOSED_JOB_STATUSES.includes(column)) setColumn('need_proposal')
           }}
         />
-        Show lost / no-sale jobs ({countIn('lost')})
+        Show closed jobs — lost ({countIn('lost')}) and declined ({countIn('declined')})
       </label>
     </div>
   )

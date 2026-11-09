@@ -186,7 +186,7 @@ export async function advanceJobForEntry(entry) {
   const job = must(await supabase.from('jobs').select('id, status').eq('id', entry.job_id).maybeSingle())
   if (!job) return null
   const current = normalizeJobStatus(job.status)
-  if (current === 'complete' || current === 'lost') return null
+  if (['complete', 'lost', 'declined'].includes(current)) return null
   const target = entry.status === 'done' ? 'in_progress' : 'scheduled'
   if (jobStatusRank(current) >= jobStatusRank(target)) return null
   must(

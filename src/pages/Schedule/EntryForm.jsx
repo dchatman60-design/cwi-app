@@ -85,7 +85,7 @@ export default function EntryForm({ entry, defaults = {}, onClose, onSaved }) {
     jobs: (jobs || []).filter(
       (j) =>
         normalizeJobStatus(j.status) === s.value &&
-        (!['complete', 'lost'].includes(s.value) || j.id === form.job_id),
+        (!['complete', 'lost', 'declined'].includes(s.value) || j.id === form.job_id),
     ),
   }))
     .filter((g) => g.jobs.length)

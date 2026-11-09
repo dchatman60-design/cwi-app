@@ -11,10 +11,11 @@ import JobNotes from '../Notes/JobNotes'
 import OpeningsTab from '../Openings/OpeningsTab'
 import JobQuotes from '../Quotes/JobQuotes'
 import JobSchedule from '../Schedule/JobSchedule'
+import { setJobStatus } from '../../lib/jobStatusChange'
 import JobMedia from '../Media/JobMedia'
 import LinkedTasks from '../Tasks/LinkedTasks'
 import JobForm from './JobForm'
-import { JOB_STATUSES, jobStatusLabel, normalizeJobStatus } from './jobStatus'
+import { JOB_STATUSES, normalizeJobStatus } from './jobStatus'
 
 const TABS = [
   { id: 'openings', label: 'Openings' },
@@ -28,7 +29,7 @@ const TABS = [
 export default function JobDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { isAdmin } = useAuth()
+  const { isAdmin, profile } = useAuth()
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -41,12 +42,15 @@ export default function JobDetail() {
 
   async function changeStatus(status) {
     setSavingStatus(true)
-    const updated_at = new Date().toISOString()
-    const { error: updateError } = await supabase.from('jobs').update({ status, updated_at }).eq('id', id)
-    setSavingStatus(false)
-    if (updateError) return toast(updateError.message, 'error')
-    mutate((j) => ({ ...j, status, updated_at }))
-    toast(`Moved to ${jobStatusLabel(status)}`)
+    try {
+      const { updated_at, message } = await setJobStatus(job, status, { userId: profile?.id })
+      mutate((j) => ({ ...j, status, updated_at }))
+      toast(message)
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setSavingStatus(false)
+    }
   }
 
   async function handleDelete() {

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { PlusIcon, SearchIcon } from '../../components/icons'
 import { Badge, Button, Card, EmptyState, ErrorMessage, inputClass, PageHeader, Segmented, Spinner } from '../../components/ui'
+import { useAuth } from '../../context/auth'
+import { setJobStatus } from '../../lib/jobStatusChange'
 import { supabase } from '../../lib/supabase'
 import { must, useQuery } from '../../lib/useQuery'
 import JobBoard from './JobBoard'
@@ -22,6 +24,7 @@ const VIEWS = [
 
 export default function JobList() {
   const navigate = useNavigate()
+  const { profile } = useAuth()
   const [params, setParams] = useSearchParams()
   const view = params.get('view') === 'board' ? 'board' : 'list'
   const [search, setSearch] = useState('')
@@ -52,15 +55,15 @@ export default function JobList() {
     .sort((a, b) => jobStatusRank(a.status) - jobStatusRank(b.status) || b.created_at.localeCompare(a.created_at))
 
   async function changeStatus(job, nextStatus) {
-    const updated_at = new Date().toISOString()
-    mutate((list) => list.map((j) => (j.id === job.id ? { ...j, status: nextStatus, updated_at } : j)))
-    const { error: updateError } = await supabase
-      .from('jobs')
-      .update({ status: nextStatus, updated_at })
-      .eq('id', job.id)
-    if (updateError) {
+    const previous = job.status
+    mutate((list) => list.map((j) => (j.id === job.id ? { ...j, status: nextStatus } : j)))
+    try {
+      const { updated_at, message } = await setJobStatus({ ...job, status: previous }, nextStatus, { userId: profile?.id })
+      mutate((list) => list.map((j) => (j.id === job.id ? { ...j, updated_at } : j)))
+      return message
+    } catch (err) {
       reload()
-      throw updateError
+      throw err
     }
   }
 

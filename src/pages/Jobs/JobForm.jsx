@@ -3,10 +3,13 @@ import { Button, ErrorMessage, Field, inputClass, Sheet } from '../../components
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { must, useQuery } from '../../lib/useQuery'
+import { useAuth } from '../../context/auth'
+import { createDeclineCallTask } from '../../lib/jobStatusChange'
 import { DEFAULT_JOB_STATUS, JOB_STATUSES, normalizeJobStatus } from './jobStatus'
 
 /** Add or edit a job. Mount only while open. onSaved receives the saved row. */
 export default function JobForm({ job, defaults = {}, onClose, onSaved }) {
+  const { profile } = useAuth()
   const [form, setForm] = useState(() => ({
     job_name: job?.job_name ?? '',
     site_address: job?.site_address ?? '',
@@ -48,7 +51,16 @@ export default function JobForm({ job, defaults = {}, onClose, onSaved }) {
               .single(),
           )
         : must(await supabase.from('jobs').insert(row).select().single())
-      toast(job ? 'Job updated' : 'Job created')
+      let taskNote = ''
+      if (form.status === 'declined' && normalizeJobStatus(job?.status) !== 'declined') {
+        try {
+          if (await createDeclineCallTask(saved.id, profile?.id)) taskNote = ' · call task added to Tasks'
+        } catch (err) {
+          console.error('Could not create the decline call task', err)
+          taskNote = ' · couldn’t add the call task — add it in Tasks'
+        }
+      }
+      toast((job ? 'Job updated' : 'Job created') + taskNote)
       onSaved?.(saved)
       onClose()
     } catch (err) {
