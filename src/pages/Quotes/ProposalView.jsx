@@ -37,10 +37,11 @@ function formatDate(iso) {
 
 /**
  * Client-facing proposal laid out like CWI's printed one: letterhead, TO / RE,
- * scope of work with one priced line per door (plus any general lines and
- * labor), total, sign-off and the acceptance block. Materials, quantities and
- * diagrams show only when "Show details" is on for the quote; the markup and
- * unit costs never do.
+ * scope of work with one priced line per door (plus any general lines), total,
+ * sign-off and the acceptance block. Each line's price includes its materials
+ * with markup, its service lines and its share of the install labor — markup
+ * and labor are never itemized. Materials, quantities and diagrams show only
+ * when "Show details" is on; unit costs never do.
  */
 export default function ProposalView({ quote, sections, totals, diagramsByOpening, onBack }) {
   const client = quote.job?.client
@@ -67,12 +68,23 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
       }
     }
   }
+  // Install labor is built into the line prices (in proportion to each line),
+  // never shown as its own line; the markup is already in each line.
   if (totals.labor > 0) {
-    lines.push({
-      key: 'labor',
-      label: `Installation labor (${trimNumber(quote.labor_days)} day${Number(quote.labor_days) === 1 ? '' : 's'})`,
-      amount: totals.labor,
-    })
+    const base = lines.reduce((sum, l) => sum + l.amount, 0)
+    if (!lines.length || base <= 0) {
+      lines.splice(0, lines.length, { key: 'install', label: 'Installation', amount: totals.labor })
+    } else {
+      let given = 0
+      lines.forEach((line, i) => {
+        const share =
+          i === lines.length - 1
+            ? Math.round((totals.labor - given) * 100) / 100
+            : Math.round(((totals.labor * line.amount) / base) * 100) / 100
+        given += share
+        line.amount += share
+      })
+    }
   }
 
   return (
