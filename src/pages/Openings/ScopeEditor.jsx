@@ -52,7 +52,7 @@ export default function ScopeEditor({ opening, onSaved }) {
         {main.map((m) => (
           <label
             key={m.line}
-            className={`flex min-h-12 min-w-0 items-center gap-2 rounded-lg border px-2.5 text-[15px] leading-tight font-semibold ${
+            className={`flex min-h-12 min-w-0 items-center gap-2 rounded-lg border px-2.5 text-[15px] leading-tight font-semibold first:col-span-2 ${
               has(m.line) ? 'border-blue-700 bg-blue-50 text-blue-900' : 'border-slate-300 bg-white text-slate-800'
             }`}
           >

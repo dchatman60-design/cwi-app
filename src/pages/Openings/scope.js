@@ -2,8 +2,10 @@
 
 /** The four kinds of work most doors get — shown as checkboxes. */
 export function mainScope(openingType) {
-  const sweeps = openingType === 'double_door' ? 'door sweeps' : 'door sweep'
+  const double = openingType === 'double_door'
+  const sweeps = double ? 'door sweeps' : 'door sweep'
   return [
+    { label: double ? 'Remove & rehang doors' : 'Remove & rehang door', line: double ? 'Remove and rehang doors' : 'Remove and rehang door' },
     { label: 'Weatherstrip', line: 'Furnish and install weatherstripping' },
     { label: 'Threshold', line: 'Furnish and install threshold' },
     { label: 'Sill cover', line: 'Furnish and install sill cover' },
@@ -23,6 +25,14 @@ export function scopePresets(openingType) {
 }
 
 const scopeKey = (items) => items.map((s) => s.trim().toLowerCase()).join('|')
+
+// Proposal order: remove & rehang, then the furnish-and-install work, then anything typed in
+const ORDER = [/remove and rehang/i, /weatherstrip/i, /threshold/i, /sill cover/i, /sweep/i, /door bottom/i, /astragal/i, /v-seal/i, /adjust/i]
+const rank = (line) => {
+  const i = ORDER.findIndex((re) => re.test(line))
+  return i === -1 ? ORDER.length : i
+}
+export const sortScope = (items) => [...items].sort((a, b) => rank(a) - rank(b))
 
 /** "French Door 1…8" → "French Doors 1–8"; otherwise the names, comma-separated. */
 export function groupLabel(names) {
@@ -50,7 +60,7 @@ export function groupByScope(openings) {
   const groups = []
   const byKey = new Map()
   for (const o of openings) {
-    const items = (o.scope_items || []).filter((s) => s && s.trim())
+    const items = sortScope((o.scope_items || []).filter((s) => s && s.trim()))
     if (!items.length) {
       groups.push({ key: o.id, openings: [o], items: [] })
       continue
