@@ -10,6 +10,8 @@ export const COMPANY = {
     { name: 'Mike Siebuhr', cell: '949 433-7740', email: 'siebuhr@sbcglobal.net' },
     { name: 'Cindy Siebuhr', cell: '714 313 7390', email: 'csiebuhr@sbcglobal.net' },
   ],
+  // Zelle email or phone to print on proposals (null = not shown)
+  zelle: null,
   // Signs proposals
   signer: 'Mike Siebuhr',
 }

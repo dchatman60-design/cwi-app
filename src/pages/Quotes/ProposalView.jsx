@@ -1,11 +1,13 @@
 import { BackIcon, PrintIcon } from '../../components/icons'
 import { LogoMark } from '../../components/Logo'
 import SignedImage from '../../components/SignedImage'
-import { Button } from '../../components/ui'
+import { useState } from 'react'
+import { Button, Segmented } from '../../components/ui'
 import { COMPANY, DEFAULT_SCOPE_INTRO } from '../../lib/company'
 import { currency, parseLocalDate, trimNumber } from '../../lib/format'
 import { hasRealDescription } from '../Search/catalog'
 import { groupByScope, sortScope } from '../Openings/scope'
+import InternalBreakdown from './InternalBreakdown'
 import { isService, quoteTitle, SERVICE_UNITS } from './quotes'
 
 function qtyLabel(item) {
@@ -46,7 +48,13 @@ function formatDate(iso) {
  * quantities and diagrams show only when "Show details" is on; no per-door
  * prices or unit costs ever do.
  */
+const VIEWS = [
+  { value: 'customer', label: 'Customer proposal' },
+  { value: 'internal', label: 'Internal breakdown' },
+]
+
 export default function ProposalView({ quote, sections, totals, diagramsByOpening, onBack }) {
+  const [view, setView] = useState('customer')
   const client = quote.job?.client
   const toName = client?.contact_name || client?.client_name || ''
   const toCompany = client?.contact_name && client.contact_name !== client.client_name ? client.client_name : null
@@ -87,11 +95,18 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
           <PrintIcon className="size-5" /> Print / Save PDF
         </Button>
       </div>
+      <div className="mb-4 print:hidden">
+        <Segmented options={VIEWS} value={view} onChange={setView} />
+      </div>
 
-      <article className="rounded-xl border border-slate-200 bg-white p-5 text-slate-900 sm:p-8 print:border-0 print:p-0">
+      {view === 'internal' ? (
+        <InternalBreakdown quote={quote} sections={sections} totals={totals} deposit={deposit} balance={balance} />
+      ) : (
+
+      <article className="rounded-xl border border-slate-200 bg-white p-5 text-slate-900 sm:p-8 print:border-0 print:p-0 print:text-[14px]">
         {/* Letterhead */}
         <header className="flex items-start gap-4 border-b-2 border-slate-900 pb-4">
-          <LogoMark className="size-16 shrink-0 sm:size-20" />
+          <LogoMark className="size-16 shrink-0 sm:size-20 print:size-16" />
           <div className="min-w-0 text-sm leading-snug">
             <div className="text-base font-bold tracking-wide uppercase">
               {COMPANY.name.replace(',', '')}
@@ -213,6 +228,11 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
               <dd className="font-semibold tabular-nums">{currency(balance)}</dd>
             </div>
           </dl>
+          <p className="mt-2 text-sm">
+            Payment accepted by <span className="font-semibold">Zelle</span> or{' '}
+            <span className="font-semibold">check</span> payable to {COMPANY.name}
+            {COMPANY.zelle && <> Zelle to {COMPANY.zelle}.</>}
+          </p>
         </section>
 
         {quote.notes && <p className="mt-5 text-sm whitespace-pre-wrap">{quote.notes}</p>}
@@ -224,7 +244,7 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
         </div>
 
         {/* Acceptance */}
-        <footer className="mt-12 space-y-5 border-t border-slate-300 pt-5 text-base break-inside-avoid print:mt-6 print:space-y-4 print:pt-3">
+        <footer className="mt-12 space-y-5 border-t border-slate-300 pt-5 text-base break-inside-avoid print:mt-5 print:space-y-3 print:pt-3 print:text-[14px]">
           <p>
             <span className="font-bold">{COMPANY.name}</span> is ordered to install the above. When signed by the
             purchaser, this becomes a contract in the amount of{' '}
@@ -244,8 +264,20 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
               <span className="h-6 flex-1 border-b border-slate-700" />
             </div>
           </div>
+          <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
+            <span className="shrink-0">Deposit paid by:</span>
+            <span className="flex items-center gap-2">
+              <span className="inline-block size-4 border border-slate-700" aria-hidden="true" /> Zelle
+            </span>
+            <span className="flex min-w-0 flex-1 items-end gap-2">
+              <span className="inline-block size-4 shrink-0 border border-slate-700" aria-hidden="true" />
+              <span className="shrink-0">Check #</span>
+              <span className="h-5 min-w-24 flex-1 border-b border-slate-700" />
+            </span>
+          </div>
         </footer>
       </article>
+      )}
     </div>
   )
 }
