@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { must, useQuery } from '../../lib/useQuery'
 import MoveToOpeningSheet from './MoveToOpeningSheet'
+import BulkOpeningsForm from './BulkOpeningsForm'
 import OpeningForm from './OpeningForm'
 import { openingTypeLabel } from './openings'
 
@@ -15,11 +16,12 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 export default function OpeningsTab({ job }) {
   const navigate = useNavigate()
   const [adding, setAdding] = useState(false)
+  const [addingMany, setAddingMany] = useState(false)
   const [moveTo, setMoveTo] = useState('')
   const [moving, setMoving] = useState(false)
   const [picking, setPicking] = useState(false)
 
-  const { data: openings, error, loading } = useQuery(`openings:${job.id}`, async () =>
+  const { data: openings, error, loading, reload } = useQuery(`openings:${job.id}`, async () =>
     must(await supabase.from('openings').select('*').eq('job_id', job.id).order('created_at')),
   )
   const counts = useQuery(`opening-counts:${job.id}`, async () => {
@@ -53,9 +55,14 @@ export default function OpeningsTab({ job }) {
 
   return (
     <div className="space-y-4">
-      <Button className="min-h-14 w-full" onClick={() => setAdding(true)}>
-        <PlusIcon className="size-5" /> Add opening
-      </Button>
+      <div className="grid grid-cols-2 gap-3">
+        <Button className="min-h-14" onClick={() => setAdding(true)}>
+          <PlusIcon className="size-5" /> Add opening
+        </Button>
+        <Button variant="secondary" className="min-h-14" onClick={() => setAddingMany(true)}>
+          <PlusIcon className="size-5" /> Add several
+        </Button>
+      </div>
 
       <ErrorMessage error={error} />
       {loading && !openings && <Spinner />}
@@ -129,6 +136,14 @@ export default function OpeningsTab({ job }) {
           jobId={job.id}
           onClose={() => setAdding(false)}
           onSaved={(opening) => navigate(`/jobs/${job.id}/openings/${opening.id}`)}
+        />
+      )}
+      {addingMany && (
+        <BulkOpeningsForm
+          jobId={job.id}
+          existingNames={(openings || []).map((o) => o.opening_name)}
+          onClose={() => setAddingMany(false)}
+          onSaved={reload}
         />
       )}
     </div>
