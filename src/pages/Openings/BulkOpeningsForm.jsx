@@ -3,14 +3,15 @@ import { Button, ErrorMessage, Field, inputClass, Segmented, Sheet } from '../..
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { must } from '../../lib/useQuery'
-import { OPENING_TYPES } from './openings'
+import { guessOpeningType, OPENING_TYPES, useOpeningNameSuggestions } from './openings'
 
 const MODES = [
+  { value: 'list', label: 'Pick names' },
   { value: 'numbered', label: 'Numbered' },
-  { value: 'list', label: 'List of names' },
 ]
 
-const BASE_NAMES = ['Door', 'Pair', 'French doors', 'Window', 'Unit', 'Suite', 'Gate']
+const BASE_NAMES = ['French doors', 'Pair', 'Door', 'Window', 'Unit', 'Suite', 'Gate']
+const SHOWN = 24
 const MAX = 50
 
 /** Highest number already used after `base` (e.g. "Pair 4" → 4), so new ones carry on. */
@@ -28,11 +29,13 @@ function lastNumber(existing, base) {
  * Mount only while open. onSaved receives the new rows.
  */
 export default function BulkOpeningsForm({ jobId, existingNames = [], onClose, onSaved }) {
-  const [mode, setMode] = useState('numbered')
+  const suggestions = useOpeningNameSuggestions()
+  const [mode, setMode] = useState('list')
+  const [showAll, setShowAll] = useState(false)
   const [count, setCount] = useState('2')
   const [base, setBase] = useState('Door')
   const [list, setList] = useState('')
-  const [type, setType] = useState('single_door')
+  const [type, setType] = useState('auto') // 'auto' = from each name
   const [fireRated, setFireRated] = useState(false)
   const [complex, setComplex] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -51,6 +54,15 @@ export default function BulkOpeningsForm({ jobId, existingNames = [], onClose, o
           .filter(Boolean)
           .slice(0, MAX)
   const taken = new Set(existingNames.map((x) => x.toLowerCase()))
+  const picked = new Set(names.map((x) => x.toLowerCase()))
+
+  function togglePick(name) {
+    const lines = list.split('\n').map((s) => s.trim()).filter(Boolean)
+    const next = picked.has(name.toLowerCase())
+      ? lines.filter((l) => l.toLowerCase() !== name.toLowerCase())
+      : [...lines, name]
+    setList(next.join('\n'))
+  }
   const duplicates = names.filter((x) => taken.has(x.toLowerCase()))
 
   async function save() {
@@ -65,7 +77,7 @@ export default function BulkOpeningsForm({ jobId, existingNames = [], onClose, o
             names.map((opening_name) => ({
               job_id: jobId,
               opening_name,
-              opening_type: type,
+              opening_type: type === 'auto' ? guessOpeningType(opening_name) || 'single_door' : type,
               is_fire_rated: fireRated,
               is_complex: complex,
             })),
@@ -115,7 +127,35 @@ export default function BulkOpeningsForm({ jobId, existingNames = [], onClose, o
             </Field>
           </div>
         ) : (
-          <Field label="Names" hint="One per line — whatever the site contact calls each one.">
+          <>
+          <div>
+            <span className="mb-1 block text-sm font-medium text-slate-700">Tap to add</span>
+            <div className="flex flex-wrap gap-2">
+              {(showAll ? suggestions : suggestions.slice(0, SHOWN)).map((name) => {
+                const on = picked.has(name.toLowerCase())
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => togglePick(name)}
+                    aria-pressed={on}
+                    className={`min-h-10 rounded-full border px-3 text-sm font-medium ${
+                      on ? 'border-blue-700 bg-blue-700 text-white' : 'border-slate-300 bg-white text-slate-700'
+                    }`}
+                  >
+                    {on ? '✓ ' : '+ '}
+                    {name}
+                  </button>
+                )
+              })}
+              {!showAll && suggestions.length > SHOWN && (
+                <button type="button" onClick={() => setShowAll(true)} className="min-h-10 px-2 text-sm font-semibold text-blue-700">
+                  More…
+                </button>
+              )}
+            </div>
+          </div>
+          <Field label="Names" hint="One per line — tap names above or type your own. Use a name twice to add two.">
             <textarea
               className={`${inputClass} min-h-32`}
               value={list}
@@ -123,12 +163,19 @@ export default function BulkOpeningsForm({ jobId, existingNames = [], onClose, o
               placeholder={'Living room\nMaster bedroom\nDining room'}
             />
           </Field>
+          </>
         )}
 
-        <div>
-          <span className="mb-1 block text-sm font-medium text-slate-700">Type (all of them)</span>
-          <Segmented options={OPENING_TYPES} value={type} onChange={setType} />
-        </div>
+        <Field label="Type" hint={type === 'auto' ? 'French doors and pairs become double doors, windows become windows, the rest single doors.' : 'Every opening gets this type.'}>
+          <select className={inputClass} value={type} onChange={(e) => setType(e.target.value)}>
+            <option value="auto">Match each name</option>
+            {OPENING_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                All {t.label.toLowerCase()}s
+              </option>
+            ))}
+          </select>
+        </Field>
 
         <div className="flex flex-wrap gap-x-5 gap-y-1">
           <label className="flex min-h-11 items-center gap-2 text-sm">
@@ -153,6 +200,9 @@ export default function BulkOpeningsForm({ jobId, existingNames = [], onClose, o
                   }`}
                 >
                   {x}
+                  <span className="ml-1 text-xs opacity-70">
+                    · {(OPENING_TYPES.find((t) => t.value === (type === 'auto' ? guessOpeningType(x) || 'single_door' : type)) || OPENING_TYPES[0]).label.toLowerCase()}
+                  </span>
                 </span>
               ))}
             </div>

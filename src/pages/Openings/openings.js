@@ -1,7 +1,7 @@
 // Openings: each door or window on a job (Engagement Guide, Step 2).
 
 import { supabase } from '../../lib/supabase'
-import { must } from '../../lib/useQuery'
+import { must, useQuery } from '../../lib/useQuery'
 
 export const OPENING_TYPES = [
   { value: 'single_door', label: 'Single door' },
@@ -11,15 +11,56 @@ export const OPENING_TYPES = [
 ]
 
 export const OPENING_NAME_SUGGESTIONS = [
-  'Front entry',
-  'Back door',
-  'Side door',
-  'Garage entry',
-  'Patio door',
   'French doors',
+  'Front entry',
+  'Dutch entry door',
+  'Rear entry Dutch door',
+  'Side door',
+  'Back door',
+  'House to garage door',
+  'Garage to exterior door',
+  'Patio door',
+  'Sliding door',
   'Kitchen window',
   'Bedroom window',
 ]
+
+/** Best-guess type from a name: pairs / French doors are double, windows are windows. */
+export function guessOpeningType(name) {
+  const n = (name || '').toLowerCase()
+  if (/french|pair|double|astragal/.test(n)) return 'double_door'
+  if (/window|sidelite|transom/.test(n)) return 'window'
+  if (/door|entry|dutch|garage|gate|suite|unit/.test(n)) return 'single_door'
+  return null
+}
+
+/**
+ * Opening names for the pick lists: the ones the team has already used on
+ * jobs (most-used first, numbered ones like "Pair 3" folded into "Pair"),
+ * then the standard suggestions.
+ */
+export function useOpeningNameSuggestions() {
+  const { data } = useQuery('opening-name-suggestions', async () => {
+    const rows = must(await supabase.from('openings').select('opening_name').limit(2000))
+    const counts = new Map()
+    for (const { opening_name } of rows) {
+      const name = (opening_name || '').trim().replace(/\s+\d+$/, '')
+      if (!name) continue
+      const key = name.toLowerCase()
+      const entry = counts.get(key) || { name, n: 0 }
+      entry.n += 1
+      counts.set(key, entry)
+    }
+    return [...counts.values()].sort((a, b) => b.n - a.n).map((e) => e.name)
+  })
+  const seen = new Set()
+  return [...(data || []), ...OPENING_NAME_SUGGESTIONS].filter((n) => {
+    const key = n.toLowerCase()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
 
 export function openingTypeLabel(type) {
   return OPENING_TYPES.find((t) => t.value === type)?.label || 'Opening'

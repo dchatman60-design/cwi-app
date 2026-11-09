@@ -136,6 +136,10 @@ export default function OpeningsTab({ job }) {
           jobId={job.id}
           onClose={() => setAdding(false)}
           onSaved={(opening) => navigate(`/jobs/${job.id}/openings/${opening.id}`)}
+          onAddSeveral={() => {
+            setAdding(false)
+            setAddingMany(true)
+          }}
         />
       )}
       {addingMany && (

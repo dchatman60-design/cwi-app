@@ -3,10 +3,11 @@ import { Button, ErrorMessage, Field, inputClass, Segmented, Sheet } from '../..
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { must } from '../../lib/useQuery'
-import { OPENING_NAME_SUGGESTIONS, OPENING_TYPES } from './openings'
+import { guessOpeningType, OPENING_TYPES, useOpeningNameSuggestions } from './openings'
 
 /** Add or edit an opening. Mount only while open. onSaved receives the saved row. */
-export default function OpeningForm({ jobId, opening, onClose, onSaved }) {
+export default function OpeningForm({ jobId, opening, onClose, onSaved, onAddSeveral }) {
+  const suggestions = useOpeningNameSuggestions()
   const [form, setForm] = useState(() => ({
     opening_name: opening?.opening_name ?? '',
     opening_type: opening?.opening_type ?? 'single_door',
@@ -14,6 +15,7 @@ export default function OpeningForm({ jobId, opening, onClose, onSaved }) {
     is_complex: opening?.is_complex ?? false,
     notes: opening?.notes ?? '',
   }))
+  const [typeTouched, setTypeTouched] = useState(Boolean(opening))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const set = (field) => (value) => setForm((f) => ({ ...f, [field]: value?.target ? value.target.value : value }))
@@ -49,23 +51,44 @@ export default function OpeningForm({ jobId, opening, onClose, onSaved }) {
       }
     >
       <form id="opening-form" onSubmit={handleSubmit} className="space-y-4">
+        {!opening && onAddSeveral && (
+          <button
+            type="button"
+            onClick={onAddSeveral}
+            className="flex min-h-11 w-full items-center justify-between rounded-lg bg-blue-50 px-3 text-sm font-semibold text-blue-800 active:bg-blue-100"
+          >
+            Adding more than one? Add several at once
+            <span aria-hidden="true">→</span>
+          </button>
+        )}
         <Field label="Name" required hint="Use what the site contact calls it — this is how it appears on the quote.">
           <input
             className={inputClass}
             list="opening-names"
             value={form.opening_name}
-            onChange={set('opening_name')}
+            onChange={(e) => {
+              const name = e.target.value
+              // Picking "French doors" etc. sets the type too (until the type is chosen by hand)
+              setForm((f) => ({ ...f, opening_name: name, opening_type: !typeTouched && guessOpeningType(name) ? guessOpeningType(name) : f.opening_type }))
+            }}
             placeholder="e.g. Front entry, Suite 101, Door 3"
           />
           <datalist id="opening-names">
-            {OPENING_NAME_SUGGESTIONS.map((n) => (
+            {suggestions.map((n) => (
               <option key={n} value={n} />
             ))}
           </datalist>
         </Field>
         <div>
           <span className="mb-1 block text-sm font-medium text-slate-700">Type</span>
-          <Segmented options={OPENING_TYPES} value={form.opening_type} onChange={set('opening_type')} />
+          <Segmented
+            options={OPENING_TYPES}
+            value={form.opening_type}
+            onChange={(v) => {
+              setTypeTouched(true)
+              set('opening_type')(v)
+            }}
+          />
         </div>
         <label className="flex min-h-11 items-start gap-3 rounded-lg bg-white px-3 py-2 ring-1 ring-slate-200">
           <input
