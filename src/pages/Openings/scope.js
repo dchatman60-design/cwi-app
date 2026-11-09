@@ -1,13 +1,20 @@
 // Scope of work per door — the lines the customer proposal shows for it.
 
-/** One-tap scope lines for a door. Double doors get the plural sweeps. */
-export function scopePresets(openingType) {
+/** The four kinds of work most doors get — shown as checkboxes. */
+export function mainScope(openingType) {
   const sweeps = openingType === 'double_door' ? 'door sweeps' : 'door sweep'
   return [
-    'Furnish and install weatherstripping',
-    `Furnish and install ${sweeps}`,
-    'Furnish and install threshold',
-    'Furnish and install sill cover',
+    { label: 'Weatherstrip', line: 'Furnish and install weatherstripping' },
+    { label: 'Threshold', line: 'Furnish and install threshold' },
+    { label: 'Sill cover', line: 'Furnish and install sill cover' },
+    { label: openingType === 'double_door' ? 'Door sweeps' : 'Door sweep', line: `Furnish and install ${sweeps}` },
+  ]
+}
+
+/** One-tap scope lines for a door: the main four, then less common work. */
+export function scopePresets(openingType) {
+  return [
+    ...mainScope(openingType).map((m) => m.line),
     'Furnish and install door bottom',
     'Furnish and install astragal',
     'Furnish and install V-seal',

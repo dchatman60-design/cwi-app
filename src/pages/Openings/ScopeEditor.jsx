@@ -3,7 +3,7 @@ import { PlusIcon } from '../../components/icons'
 import { Card, inputClass } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
-import { scopePresets } from './scope'
+import { mainScope, scopePresets } from './scope'
 
 const boxClass = inputClass.replace('block w-full ', '')
 
@@ -14,7 +14,9 @@ const boxClass = inputClass.replace('block w-full ', '')
 export default function ScopeEditor({ opening, onSaved }) {
   const [items, setItems] = useState(() => opening.scope_items || [])
   const [custom, setCustom] = useState('')
+  const main = mainScope(opening.opening_type)
   const presets = scopePresets(opening.opening_type)
+  const others = presets.filter((p) => !main.some((m) => m.line === p))
   const extras = items.filter((i) => !presets.some((p) => p.toLowerCase() === i.toLowerCase()))
   const has = (line) => items.some((i) => i.toLowerCase() === line.toLowerCase())
 
@@ -43,11 +45,25 @@ export default function ScopeEditor({ opening, onSaved }) {
   return (
     <Card className="space-y-3 p-4">
       <div>
-        <h3 className="font-semibold">Scope on proposal</h3>
-        <p className="text-xs text-slate-500">What the customer sees for this door. Prices aren&apos;t shown per door — only the total.</p>
+        <h3 className="font-semibold">Work on this door</h3>
+        <p className="text-xs text-slate-500">Listed under this door on the proposal (as &ldquo;Furnish and install …&rdquo;). The proposal shows one total, not per-door prices.</p>
       </div>
+      <div className="grid grid-cols-2 gap-2">
+        {main.map((m) => (
+          <label
+            key={m.line}
+            className={`flex min-h-12 min-w-0 items-center gap-2 rounded-lg border px-2.5 text-[15px] leading-tight font-semibold ${
+              has(m.line) ? 'border-blue-700 bg-blue-50 text-blue-900' : 'border-slate-300 bg-white text-slate-800'
+            }`}
+          >
+            <input type="checkbox" className="size-5 shrink-0 accent-blue-700" checked={has(m.line)} onChange={() => toggle(m.line)} />
+            <span className="min-w-0">{m.label}</span>
+          </label>
+        ))}
+      </div>
+      <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Other work</div>
       <div className="flex flex-wrap gap-2">
-        {[...presets, ...extras].map((line) => {
+        {[...others, ...extras].map((line) => {
           const on = has(line)
           return (
             <button
