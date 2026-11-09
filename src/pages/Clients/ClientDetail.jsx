@@ -8,6 +8,8 @@ import { useAuth } from '../../context/auth'
 import { must, mustDelete, useQuery } from '../../lib/useQuery'
 import JobForm from '../Jobs/JobForm'
 import { jobStatusLabel, jobStatusTone } from '../Jobs/jobStatus'
+import { ClientNotes } from '../Notes/JobNotes'
+import { JOB_FILES_BUCKET, removeFiles } from '../../lib/supabase'
 import LinkedTasks from '../Tasks/LinkedTasks'
 import ClientForm from './ClientForm'
 
@@ -58,12 +60,19 @@ export default function ClientDetail() {
     const jobCount = jobs?.length || 0
     if (
       !window.confirm(
-        `Delete ${client.client_name}?${jobCount ? ` Their ${jobCount} job${jobCount === 1 ? '' : 's'} will be kept but no longer linked to a client.` : ''} Linked tasks are kept. This can't be undone.`,
+        `Delete ${client.client_name}?${jobCount ? ` Their ${jobCount} job${jobCount === 1 ? '' : 's'} (and the notes on them) will be kept but no longer linked to a client.` : ''} Notes on the client itself are deleted; linked tasks are kept. This can't be undone.`,
       )
     )
       return
     try {
+      // Files on client-only notes go with them
+      const { data: files } = await supabase
+        .from('job_note_attachments')
+        .select('storage_path')
+        .eq('client_id', id)
+        .is('job_id', null)
       mustDelete(await supabase.from('clients').delete().eq('id', id).select('id'), 'this client')
+      if (files?.length) await removeFiles(JOB_FILES_BUCKET, files.map((f) => f.storage_path)).catch(() => {})
       toast('Client deleted')
       navigate('/clients', { replace: true })
     } catch (err) {
@@ -119,7 +128,7 @@ export default function ClientDetail() {
           ['Phone', client.phone],
           ['Email', client.email],
           ['Address', client.address],
-          ['Notes', client.notes],
+          ['About', client.notes],
         ]
           .filter(([, v]) => v)
           .map(([label, value]) => (
@@ -152,6 +161,11 @@ export default function ClientDetail() {
         ) : (
           <p className="text-sm text-slate-500">No jobs for this client yet.</p>
         )}
+      </section>
+
+      <section className="mt-6 px-4">
+        <h2 className="mb-2 text-lg font-bold">Notes</h2>
+        {jobs && <ClientNotes clientId={id} jobs={jobs} />}
       </section>
 
       <section className="mt-6 px-4">

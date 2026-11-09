@@ -24,8 +24,12 @@ function toLocalInput(date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-/** Add or edit a job note with attachments. Mount only while open. */
-export default function NoteForm({ jobId, note, onClose, onSaved }) {
+/**
+ * Add or edit a note with attachments. Mount only while open.
+ * From a job: pass jobId. From a client profile: pass clientId (and their
+ * jobs, so the note can be about one of them).
+ */
+export default function NoteForm({ jobId = null, clientId = null, jobs = [], note, onClose, onSaved }) {
   const { profile } = useAuth()
   const online = useOnlineStatus()
   const [form, setForm] = useState(() => ({
@@ -33,6 +37,7 @@ export default function NoteForm({ jobId, note, onClose, onSaved }) {
     channel: note?.channel ?? 'Text message',
     occurredAt: toLocalInput(note?.occurred_at ?? new Date()),
     body: note?.body ?? '',
+    aboutJob: note ? (note.job_id ?? '') : (jobId ?? ''),
   }))
   const [newFiles, setNewFiles] = useState([]) // [{ file, url }]
   const [removed, setRemoved] = useState([]) // existing attachments to delete
@@ -80,12 +85,16 @@ export default function NoteForm({ jobId, note, onClose, onSaved }) {
     setError(null)
     try {
       const existingId = note?.id || createdId.current
+      // From a client profile the note can be about one of their jobs
+      const owner = clientId
+        ? { job_id: form.aboutJob || null, client_id: clientId }
+        : { job_id: jobId, client_id: note?.client_id ?? null }
       const saved = existingId
-        ? must(await supabase.from('job_notes').update(row).eq('id', existingId).select().single())
-        : must(await supabase.from('job_notes').insert({ ...row, job_id: jobId, author_id: profile.id }).select().single())
+        ? must(await supabase.from('job_notes').update({ ...row, ...(clientId ? owner : {}) }).eq('id', existingId).select().single())
+        : must(await supabase.from('job_notes').insert({ ...row, ...owner, author_id: profile.id }).select().single())
       createdId.current = saved.id
       for (const item of newFiles) {
-        await uploadAttachment(jobId, saved.id, item.file)
+        await uploadAttachment({ jobId: saved.job_id, clientId: saved.client_id }, saved.id, item.file)
         setNewFiles((list) => list.filter((f) => f !== item)) // uploaded — don't send twice
       }
       await deleteAttachments(removed)
@@ -113,6 +122,18 @@ export default function NoteForm({ jobId, note, onClose, onSaved }) {
       }
     >
       <form id="note-form" onSubmit={save} className="space-y-4">
+        {clientId && jobs.length > 0 && (
+          <Field label="About">
+            <select className={inputClass} value={form.aboutJob} onChange={set('aboutJob')}>
+              <option value="">The client in general</option>
+              {jobs.map((j) => (
+                <option key={j.id} value={j.id}>
+                  Job: {j.job_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         <div>
           <span className="mb-2 block text-sm font-medium text-slate-700">Category</span>
           <div className="flex flex-wrap gap-2">

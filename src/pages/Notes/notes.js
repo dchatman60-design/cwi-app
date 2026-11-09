@@ -17,7 +17,7 @@ export const USES_CHANNEL = ['client_correspondence', 'supplier', 'scheduling']
 export const ATTACHMENT_ACCEPT = 'image/*,application/pdf,.eml,.msg,.txt,.doc,.docx,.xls,.xlsx,.csv'
 export const MAX_FILE_BYTES = 25 * 1024 * 1024
 
-export const NOTE_SELECT = '*, author:author_id(full_name), attachments:job_note_attachments(*)'
+export const NOTE_SELECT = '*, author:author_id(full_name), job:job_id(id, job_name), attachments:job_note_attachments(*)'
 
 export function categoryInfo(value) {
   return NOTE_CATEGORIES.find((c) => c.value === value) || NOTE_CATEGORIES[1]
@@ -27,9 +27,10 @@ export const isImage = (attachment) => (attachment.content_type || '').startsWit
 
 const safeName = (name) => name.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(-80) || 'file'
 
-/** Upload one file for a note and record it. */
-export async function uploadAttachment(jobId, noteId, file) {
-  const path = `${jobId}/${noteId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safeName(file.name)}`
+/** Upload one file for a note (on a job, a client, or both) and record it. */
+export async function uploadAttachment({ jobId = null, clientId = null }, noteId, file) {
+  const folder = jobId || `clients/${clientId}`
+  const path = `${folder}/${noteId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safeName(file.name)}`
   const { error } = await supabase.storage
     .from(JOB_FILES_BUCKET)
     .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false })
@@ -38,6 +39,7 @@ export async function uploadAttachment(jobId, noteId, file) {
     await supabase.from('job_note_attachments').insert({
       note_id: noteId,
       job_id: jobId,
+      client_id: clientId,
       storage_path: path,
       file_name: file.name,
       content_type: file.type || null,

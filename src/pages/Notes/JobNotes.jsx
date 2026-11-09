@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { EditIcon, PlusIcon, TrashIcon } from '../../components/icons'
 import SignedImage from '../../components/SignedImage'
 import { Badge, Button, Card, EmptyState, ErrorMessage, Spinner } from '../../components/ui'
@@ -30,11 +31,31 @@ function FileLink({ attachment }) {
 
 /** The job's running record: client correspondence, site visits, supplier calls… */
 export default function JobNotes({ jobId }) {
+  return <NotesList jobId={jobId} />
+}
+
+/**
+ * A client's running record: notes logged on the client plus the notes on
+ * each of their jobs (labeled with the job), newest first.
+ */
+export function ClientNotes({ clientId, jobs = [] }) {
+  return <NotesList clientId={clientId} jobs={jobs} />
+}
+
+function NotesList({ jobId = null, clientId = null, jobs = [] }) {
   const [filter, setFilter] = useState('all')
   const [editing, setEditing] = useState(null) // null | 'new' | note
+  const jobIds = jobs.map((j) => j.id)
 
-  const { data: notes, error, loading, reload } = useQuery(`job-notes:${jobId}`, async () =>
-    must(await supabase.from('job_notes').select(NOTE_SELECT).eq('job_id', jobId).order('occurred_at', { ascending: false })),
+  const { data: notes, error, loading, reload } = useQuery(
+    clientId ? `client-notes:${clientId}:${jobIds.join(',')}` : `job-notes:${jobId}`,
+    async () => {
+      let query = supabase.from('job_notes').select(NOTE_SELECT)
+      query = clientId
+        ? query.or([`client_id.eq.${clientId}`, ...(jobIds.length ? [`job_id.in.(${jobIds.join(',')})`] : [])].join(','))
+        : query.eq('job_id', jobId)
+      return must(await query.order('occurred_at', { ascending: false }))
+    },
   )
   const shown = (notes || []).filter((n) => filter === 'all' || n.category === filter)
 
@@ -75,7 +96,9 @@ export default function JobNotes({ jobId }) {
       {loading && !notes && <Spinner />}
       {notes && shown.length === 0 && (
         <EmptyState title={filter === 'all' ? 'No notes yet' : 'No notes in this category'}>
-          Log texts, emails and calls with the client, site visits and supplier updates — with screenshots attached.
+          {clientId
+            ? 'Log calls, texts and emails with this client — for one of their jobs or the client in general.'
+            : 'Log texts, emails and calls with the client, site visits and supplier updates — with screenshots attached.'}
         </EmptyState>
       )}
 
@@ -90,6 +113,11 @@ export default function JobNotes({ jobId }) {
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Badge tone={cat.tone}>{cat.label}</Badge>
                   {note.channel && <span className="text-sm text-slate-500">{note.channel}</span>}
+                  {clientId && note.job && (
+                    <Link to={`/jobs/${note.job.id}?tab=notes`} className="text-sm font-medium break-words text-blue-700">
+                      {note.job.job_name}
+                    </Link>
+                  )}
                 </div>
                 <div className="mt-1 text-xs text-slate-500">
                   {formatDateTime(note.occurred_at)}
@@ -144,7 +172,14 @@ export default function JobNotes({ jobId }) {
       })}
 
       {editing && (
-        <NoteForm jobId={jobId} note={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={reload} />
+        <NoteForm
+          jobId={jobId}
+          clientId={clientId}
+          jobs={jobs}
+          note={editing === 'new' ? null : editing}
+          onClose={() => setEditing(null)}
+          onSaved={reload}
+        />
       )}
     </div>
   )
