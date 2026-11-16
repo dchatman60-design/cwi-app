@@ -46,8 +46,10 @@ export function buildDiagramSvg({ job, opening = null, measurements, date = new 
   const find = (parts, pattern) =>
     confirmed.find((m) => hasValue(m) && parts.includes(m.component) && pattern.test(m.dimension || ''))
 
-  const width = find(['opening', 'window', 'head_jam', 'threshold'], /width|length|span|opening/i)
-  const height = find(['opening', 'window', 'side_jam_left', 'side_jam_right'], /height|length/i)
+  const width =
+    find(['opening', 'window', 'head_jam', 'threshold'], /width|length|span|opening/i) ||
+    (isDouble ? null : find(['door'], /width/i))
+  const height = find(['opening', 'window', 'door', 'side_jam_left', 'side_jam_right'], /height|length/i)
   const proportional = Boolean(width && height && width.unit === height.unit)
   const defaultRatio = isWindow ? 1.2 : isDouble ? 84 / 72 : 84 / 36
   const ratio = proportional
@@ -146,6 +148,7 @@ export function buildDiagramSvg({ job, opening = null, measurements, date = new 
     t_astragal: [fx + frameW * 0.5, fy + frameH * 0.4],
     surface_bolts: [fx + frameW - 30, fy + 34],
     window: [fx + frameW * 0.5, fy + frameH * 0.25],
+    door: [fx + frameW * 0.5, fy + frameH * 0.55],
   }
   if (isWindow) {
     delete balloonAt.threshold

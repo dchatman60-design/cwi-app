@@ -23,12 +23,27 @@ const FRACTIONS = [
   }),
 ]
 
-const DOOR_VALUES = [
+// The four that matter most on every door — shown first, always open.
+const doorKeyValues = (pair) => [
+  { component: 'door', dimension: 'height', label: 'Door height', key: true },
+  { component: 'door', dimension: 'width', label: 'Door width', hint: pair ? 'Each door' : null, key: true },
+  {
+    component: 'door_bottom',
+    dimension: 'length',
+    label: 'Door length',
+    hint: pair ? 'Sweep / door bottom, each door' : 'Sweep / door bottom',
+    key: true,
+    sameAs: { component: 'door', dimension: 'width', label: 'door width' },
+  },
+  { component: 'threshold', dimension: 'length', label: 'Threshold length', key: true },
+]
+const DOOR_MORE_VALUES = [
   { component: 'head_jam', dimension: 'width', label: 'Head jamb width' },
   { component: 'side_jam_left', dimension: 'height', label: 'Left jamb height' },
   { component: 'side_jam_right', dimension: 'height', label: 'Right jamb height' },
-  { component: 'threshold', dimension: 'width', label: 'Threshold width' },
+  { component: 'threshold', dimension: 'width', label: 'Threshold width (front to back)' },
   { component: 'threshold', dimension: 'rise', label: 'Threshold rise' },
+  { component: 'door', dimension: 'thickness', label: 'Door thickness' },
 ]
 const DOOR_CHOICES = [
   { component: 'doorstop', dimension: 'condition', label: 'Doorstop', options: ['Good', 'Worn', 'Missing'] },
@@ -44,8 +59,8 @@ export function tapeTemplate(openingType) {
   if (openingType === 'window') {
     return {
       values: [
-        { component: 'window', dimension: 'width', label: 'Window width' },
-        { component: 'window', dimension: 'height', label: 'Window height' },
+        { component: 'window', dimension: 'width', label: 'Window width', key: true },
+        { component: 'window', dimension: 'height', label: 'Window height', key: true },
       ],
       choices: [
         { component: 'window', dimension: 'type', label: 'Window type', options: ['Casement', 'Double hung', 'French pair', 'Bifold'] },
@@ -56,11 +71,11 @@ export function tapeTemplate(openingType) {
   }
   if (openingType === 'double_door') {
     return {
-      values: [...DOOR_VALUES, { component: 't_astragal', dimension: 'height', label: 'T-astragal height' }],
+      values: [...doorKeyValues(true), ...DOOR_MORE_VALUES, { component: 't_astragal', dimension: 'height', label: 'T-astragal height' }],
       choices: DOOR_CHOICES,
     }
   }
-  return { values: DOOR_VALUES, choices: DOOR_CHOICES }
+  return { values: [...doorKeyValues(false), ...DOOR_MORE_VALUES], choices: DOOR_CHOICES }
 }
 
 // The shared input style is full-width; these boxes size themselves
@@ -132,6 +147,10 @@ export default function TapeSheet({ jobId, opening, measurements, onClose, onSav
     ),
   )
   const [extras, setExtras] = useState([]) // { id, label, whole, fraction }
+  const keyRows = template.values.filter((t) => t.key)
+  const moreRows = template.values.filter((t) => !t.key)
+  // Open "More measurements" when any of them already has a value
+  const [showMore, setShowMore] = useState(() => moreRows.some((t) => existing.get(keyOf(t.component, t.dimension))))
   const [notes, setNotes] = useState(opening.notes || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -220,6 +239,32 @@ export default function TapeSheet({ jobId, opening, measurements, onClose, onSav
     }
   }
 
+  function renderRow(t) {
+    const key = keyOf(t.component, t.dimension)
+    const source = t.sameAs && values[keyOf(t.sameAs.component, t.sameAs.dimension)]
+    const canCopy = source && readValue(source) !== null && !Number.isNaN(readValue(source)) && readValue(values[key]) === null
+    return (
+      <div key={key} className="px-3 py-2">
+        <div className="flex items-center gap-2">
+          <span className="min-w-0 flex-1 break-words">
+            <span className={`block ${t.key ? 'font-semibold' : 'text-sm font-medium'}`}>{t.label}</span>
+            {t.hint && <span className="block text-xs text-slate-500">{t.hint}</span>}
+          </span>
+          <ValueInputs value={values[key]} onChange={(c) => setValue(key, c)} label={t.label} />
+        </div>
+        {canCopy && (
+          <button
+            type="button"
+            className="mt-1 text-sm font-medium text-blue-700"
+            onClick={() => setValue(key, { whole: source.whole, fraction: source.fraction })}
+          >
+            Same as {t.sameAs.label}
+          </button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <Sheet
       open
@@ -245,16 +290,27 @@ export default function TapeSheet({ jobId, opening, measurements, onClose, onSav
 
         <p className="text-sm text-slate-500">Inches, then the fraction. Leave anything you didn&apos;t measure blank.</p>
 
-        <Card className="divide-y divide-slate-100">
-          {template.values.map((t) => {
-            const key = keyOf(t.component, t.dimension)
-            return (
-              <div key={key} className="flex items-center gap-2 px-3 py-2">
-                <span className="min-w-0 flex-1 text-sm font-medium break-words">{t.label}</span>
-                <ValueInputs value={values[key]} onChange={(c) => setValue(key, c)} label={t.label} />
-              </div>
-            )
-          })}
+        <section>
+          <h3 className="mb-1.5 text-xs font-semibold tracking-wide text-slate-500 uppercase">Key measurements</h3>
+          <Card className="divide-y divide-slate-100 ring-2 ring-blue-100">
+            {keyRows.map((t) => renderRow(t))}
+          </Card>
+        </section>
+
+        {moreRows.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowMore((v) => !v)}
+            className="flex min-h-11 w-full items-center justify-between rounded-lg bg-white px-3 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
+            aria-expanded={showMore}
+          >
+            <span>More measurements ({moreRows.length})</span>
+            <span className="text-slate-400">{showMore ? '▲' : '▼'}</span>
+          </button>
+        )}
+
+        <Card className={`divide-y divide-slate-100 ${!showMore && extras.length === 0 ? 'hidden' : ''}`}>
+          {showMore && moreRows.map((t) => renderRow(t))}
           {extras.map((x) => (
             <div key={x.id} className="flex items-center gap-2 px-3 py-2">
               <input

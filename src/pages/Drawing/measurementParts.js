@@ -7,6 +7,7 @@ import { parseMeasurementText } from '../../lib/format'
 // `dims` and `notes` are quick-pick suggestions — any text is allowed.
 export const MEASUREMENT_PARTS = [
   { key: 'opening', label: 'Opening (overall)', dims: ['width', 'height'], notes: [] },
+  { key: 'door', label: 'Door', dims: ['height', 'width', 'thickness'], notes: [] },
   { key: 'head_jam', label: 'Head jamb', dims: ['width', 'depth'], notes: [] },
   { key: 'side_jam_left', label: 'Side jamb — left', dims: ['height', 'depth'], notes: [] },
   { key: 'side_jam_right', label: 'Side jamb — right', dims: ['height', 'depth'], notes: [] },
@@ -17,9 +18,9 @@ export const MEASUREMENT_PARTS = [
     dims: ['length'],
     notes: ['Silicone', 'Vinyl', 'Neoprene', 'Brush', 'Good', 'Worn', 'Missing'],
   },
-  { key: 'threshold', label: 'Threshold', dims: ['width', 'rise', 'depth'], notes: ['Saddle', 'Water return', 'Custom / specialty'] },
-  { key: 'sweep', label: 'Door sweep', dims: ['width'], notes: ['Manual', 'Automatic'] },
-  { key: 'door_bottom', label: 'Door bottom', dims: ['width'], notes: ['Automatic', 'Manual'] },
+  { key: 'threshold', label: 'Threshold', dims: ['length', 'width', 'rise', 'depth'], notes: ['Saddle', 'Water return', 'Custom / specialty'] },
+  { key: 'sweep', label: 'Door sweep', dims: ['length', 'width'], notes: ['Manual', 'Automatic'] },
+  { key: 'door_bottom', label: 'Door bottom', dims: ['length', 'width'], notes: ['Automatic', 'Manual'] },
   { key: 'surface_bolts', label: 'Surface bolts', dims: [], notes: ['Good', 'Sticking — adjust', 'Replace'] },
   { key: 't_astragal', label: 'T-astragal', dims: ['height'], notes: [] },
   { key: 'v_seal', label: 'V-slide / V-silicone seal', dims: ['length'], notes: ['V-slide', 'V-silicone', 'Good', 'Worn'] },
