@@ -10,7 +10,7 @@ import { toast } from '../../lib/toast'
 import { must, mustDelete, useQuery } from '../../lib/useQuery'
 import { hasValue, partLabel, sortByPart } from '../Drawing/measurementParts'
 import MoveToOpeningSheet from '../Openings/MoveToOpeningSheet'
-import { openingTypeLabel } from '../Openings/openings'
+import { countOpenings, doorsIn, openingTypeLabel } from '../Openings/openings'
 import AddProductSheet from './AddProductSheet'
 import ProposalView from './ProposalView'
 import QuoteItemRow from './QuoteItemRow'
@@ -174,6 +174,7 @@ export default function QuoteBuilder() {
 
   const totals = quoteTotals(quote, items)
   const hasOpenings = (openings || []).length > 0
+  const jobCounts = countOpenings(openings || [])
 
   if (params.get('view') === 'proposal') {
     return (
@@ -267,11 +268,19 @@ export default function QuoteBuilder() {
                 {opening && (
                   <div className="flex flex-wrap items-center gap-1.5 text-sm text-slate-500">
                     {openingTypeLabel(opening.opening_type)}
+                    {doorsIn(opening) === 2 && ' · 2 doors'}
                     {opening.is_fire_rated && <Badge tone="redSoft">Fire-rated</Badge>}
                   </div>
                 )}
               </div>
-              <span className="shrink-0 font-bold">{currency(linesSubtotal(quote, section.items))}</span>
+              <span className="shrink-0 text-right">
+                <span className="block font-bold">{currency(linesSubtotal(quote, section.items))}</span>
+                {doorsIn(opening) === 2 && section.items.length > 0 && (
+                  <span className="block text-xs text-slate-500">
+                    {currency(linesSubtotal(quote, section.items) / 2)} / door
+                  </span>
+                )}
+              </span>
             </div>
 
             {!opening && hasOpenings && (
@@ -413,6 +422,15 @@ export default function QuoteBuilder() {
 
         <Card className="mt-3 p-4">
           <dl className="space-y-1.5">
+            {hasOpenings && (
+              <div className="mb-2 flex justify-between border-b border-slate-200 pb-2 text-slate-700">
+                <dt>Openings / doors</dt>
+                <dd className="font-semibold">
+                  {jobCounts.openings} / {jobCounts.doors}
+                  {jobCounts.windows > 0 && ` · ${jobCounts.windows} window${jobCounts.windows === 1 ? '' : 's'}`}
+                </dd>
+              </div>
+            )}
             <div className="flex justify-between text-slate-600">
               <dt>Pemko material (list)</dt>
               <dd>{currency(totals.material)}</dd>
@@ -435,6 +453,12 @@ export default function QuoteBuilder() {
               <dt>Proposal price</dt>
               <dd>{currency(totals.total)}</dd>
             </div>
+            {jobCounts.doors > 0 && (
+              <div className="flex justify-between text-sm text-slate-500">
+                <dt>Average per door ({jobCounts.doors} doors)</dt>
+                <dd>{currency(totals.total / jobCounts.doors)}</dd>
+              </div>
+            )}
           </dl>
         </Card>
 

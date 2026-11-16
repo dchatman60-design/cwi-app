@@ -8,7 +8,7 @@ import { must, useQuery } from '../../lib/useQuery'
 import MoveToOpeningSheet from './MoveToOpeningSheet'
 import BulkOpeningsForm from './BulkOpeningsForm'
 import OpeningForm from './OpeningForm'
-import { openingTypeLabel } from './openings'
+import { countOpenings, doorsLabel, formatOpeningCounts, openingTypeLabel } from './openings'
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -72,6 +72,8 @@ export default function OpeningsTab({ job }) {
         </EmptyState>
       )}
 
+      {openings?.length > 0 && <OpeningTotals openings={openings} />}
+
       {openings?.length > 0 && (
         <Card className="divide-y divide-slate-100">
           {openings.map((o) => {
@@ -88,6 +90,7 @@ export default function OpeningsTab({ job }) {
                 </div>
                 <div className="text-sm text-slate-500">
                   {openingTypeLabel(o.opening_type)}
+                  {doorsLabel(o) && o.opening_type === 'double_door' && ` (${doorsLabel(o)})`}
                   {counts.data && ` · ${plural(m, 'measurement')} · ${plural(p, 'photo')}`}
                 </div>
               </Link>
@@ -151,5 +154,29 @@ export default function OpeningsTab({ job }) {
         />
       )}
     </div>
+  )
+}
+
+/** Totals for the job: openings, doors (a double/French door counts as 2) and windows. */
+function OpeningTotals({ openings }) {
+  const c = countOpenings(openings)
+  const stats = [
+    ['Openings', c.openings],
+    ['Doors', c.doors],
+    ...(c.windows ? [['Windows', c.windows]] : []),
+  ]
+  return (
+    <Card className="p-3">
+      <div className={`grid gap-2 text-center ${stats.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        {stats.map(([label, n]) => (
+          <div key={label}>
+            <div className="text-2xl font-bold tabular-nums">{n}</div>
+            <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{label}</div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-center text-xs text-slate-500">French / double doors count as 2 doors</p>
+      <span className="sr-only">{formatOpeningCounts(c)}</span>
+    </Card>
   )
 }

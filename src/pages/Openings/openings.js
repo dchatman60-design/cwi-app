@@ -90,3 +90,35 @@ export async function moveToOpening({ jobId, toOpeningId, measurementIds = [], p
   if (photoIds.length) must(await supabase.from('job_photos').update(patch).in('id', photoIds))
   if (itemIds.length) must(await supabase.from('quote_items').update(patch).in('id', itemIds))
 }
+
+/** Doors in one opening: a double (French) door is 2, a single door 1, a window 0. */
+export function doorsIn(opening) {
+  if (!opening) return 0
+  if (opening.opening_type === 'double_door') return 2
+  if (opening.opening_type === 'single_door') return 1
+  return 0
+}
+
+/** { openings, doors, windows } for a list of openings. */
+export function countOpenings(openings = []) {
+  return {
+    openings: openings.length,
+    doors: openings.reduce((n, o) => n + doorsIn(o), 0),
+    windows: openings.filter((o) => o.opening_type === 'window').length,
+  }
+}
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+
+/** "16 openings · 27 doors · 2 windows" */
+export function formatOpeningCounts(c) {
+  return [plural(c.openings, 'opening'), plural(c.doors, 'door'), c.windows ? plural(c.windows, 'window') : null]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+/** "2 doors" / "1 door" / null for windows. */
+export function doorsLabel(opening) {
+  const n = doorsIn(opening)
+  return n ? plural(n, 'door') : null
+}

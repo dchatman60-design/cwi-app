@@ -1,5 +1,6 @@
 import { currency, trimNumber } from '../../lib/format'
 import { hasRealDescription } from '../Search/catalog'
+import { countOpenings, doorsIn } from '../Openings/openings'
 import { isService, linesSubtotal, quoteTitle, SERVICE_UNITS } from './quotes'
 
 const lineCost = (item) => Number(item.quantity || 0) * Number(item.unit_price || 0)
@@ -18,6 +19,7 @@ export default function InternalBreakdown({ quote, sections, totals, deposit, ba
   const multiplier = Number(quote.multiplier || 0)
   const laborDays = Number(quote.labor_days || 0)
   const used = sections.filter((s) => s.items.length)
+  const counts = countOpenings(sections.map((s) => s.opening).filter(Boolean))
 
   // Same split the price would carry per door: labor in proportion to each door's subtotal
   const subtotals = used.map((s) => linesSubtotal(quote, s.items))
@@ -47,6 +49,17 @@ export default function InternalBreakdown({ quote, sections, totals, deposit, ba
       {/* Summary */}
       <section className="mt-4 max-w-md break-inside-avoid">
         <dl className="space-y-1 text-sm">
+          {counts.openings > 0 && (
+            <div className="flex justify-between gap-4 border-b border-slate-200 pb-1.5 font-semibold">
+              <dt>
+                Openings / doors <span className="font-normal text-slate-500">(French / double = 2)</span>
+              </dt>
+              <dd className="tabular-nums">
+                {counts.openings} / {counts.doors}
+                {counts.windows > 0 && ` · ${counts.windows} win.`}
+              </dd>
+            </div>
+          )}
           <div className="flex justify-between gap-4">
             <dt>Pemko material at list</dt>
             <dd className="tabular-nums">{currency(totals.material)}</dd>
@@ -77,6 +90,12 @@ export default function InternalBreakdown({ quote, sections, totals, deposit, ba
               {currency(deposit)} / {currency(balance)}
             </dd>
           </div>
+          {counts.doors > 0 && (
+            <div className="flex justify-between gap-4 text-slate-600">
+              <dt>Average per door</dt>
+              <dd className="tabular-nums">{currency(totals.total / counts.doors)}</dd>
+            </div>
+          )}
         </dl>
       </section>
 
@@ -87,8 +106,9 @@ export default function InternalBreakdown({ quote, sections, totals, deposit, ba
           const material = products.reduce((sum, it) => sum + lineCost(it), 0)
           return (
             <section key={section.key} className="break-inside-avoid">
-              <h2 className="border-b border-slate-300 pb-1 font-bold">
-                {section.opening ? section.opening.opening_name : 'Not tied to a door'}
+              <h2 className="flex items-baseline justify-between gap-3 border-b border-slate-300 pb-1 font-bold">
+                <span>{section.opening ? section.opening.opening_name : 'Not tied to a door'}</span>
+                {doorsIn(section.opening) === 2 && <span className="text-sm font-normal text-slate-500">2 doors</span>}
               </h2>
               <ul className="mt-1 divide-y divide-slate-100 text-sm">
                 {section.items.map((item) => (
@@ -125,9 +145,15 @@ export default function InternalBreakdown({ quote, sections, totals, deposit, ba
                   </div>
                 )}
                 <div className="flex justify-between gap-4 font-semibold">
-                  <dt>Door total</dt>
+                  <dt>{section.opening ? 'Opening total' : 'Total'}</dt>
                   <dd className="tabular-nums">{currency(subtotals[i] + laborShares[i])}</dd>
                 </div>
+                {doorsIn(section.opening) === 2 && (
+                  <div className="flex justify-between gap-4 text-slate-600">
+                    <dt>Per door (÷ 2)</dt>
+                    <dd className="tabular-nums">{currency((subtotals[i] + laborShares[i]) / 2)}</dd>
+                  </div>
+                )}
               </dl>
             </section>
           )
