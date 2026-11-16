@@ -6,6 +6,7 @@ import { Button, Segmented } from '../../components/ui'
 import { COMPANY, DEFAULT_SCOPE_INTRO } from '../../lib/company'
 import { currency, parseLocalDate, trimNumber } from '../../lib/format'
 import { hasRealDescription } from '../Search/catalog'
+import { countOpenings, doorsIn } from '../Openings/openings'
 import { groupByScope, sortScope } from '../Openings/scope'
 import InternalBreakdown from './InternalBreakdown'
 import { isService, quoteTitle, SERVICE_UNITS } from './quotes'
@@ -84,6 +85,15 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
     ? doors.map((d) => ({ key: d.id, label: d.opening_name, items: sortScope(d.scope_items), openings: [d] }))
     : groupByScope(doors)
   const generalItems = sections.find((sec) => !sec.opening)?.items || []
+  const counts = countOpenings(doors)
+  const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`
+  // "(3 doors)" — or "(5 openings · 10 doors)" when French doors make them differ
+  const groupCount = (g) => {
+    const n = g.openings.length
+    const d = g.openings.reduce((sum, o) => sum + doorsIn(o), 0)
+    if (n <= 1 && d <= 1) return null
+    return d && d !== n ? `${plural(n, 'opening')} · ${plural(d, 'door')}` : plural(d || n, d ? 'door' : 'opening')
+  }
 
   return (
     <div className="px-4 pt-4 print:p-0">
@@ -149,7 +159,15 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
 
         {/* Scope of work */}
         <section className="mt-8 print:mt-5">
-          <h2 className="font-bold uppercase">Scope of work:</h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+            <h2 className="font-bold uppercase">Scope of work:</h2>
+            {counts.openings > 0 && (
+              <div className="font-semibold">
+                {plural(counts.openings, 'opening')} · {plural(counts.doors, 'door')}
+                {counts.windows > 0 && ` · ${plural(counts.windows, 'window')}`}
+              </div>
+            )}
+          </div>
           {/* The general line repeats the per-door scope, so it shows only when written for this quote */}
           {(quote.scope_intro || !groups.length) && (
             <p className="mt-3 font-semibold">{quote.scope_intro || DEFAULT_SCOPE_INTRO}</p>
@@ -160,7 +178,7 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
               <div key={g.key} className="break-inside-avoid pl-4 sm:pl-6">
                 <div className="font-semibold break-words">
                   {g.label}
-                  {g.openings.length > 1 && <span className="font-normal text-slate-600"> ({g.openings.length} doors)</span>}
+                  {groupCount(g) && <span className="font-normal text-slate-600"> ({groupCount(g)})</span>}
                 </div>
                 {g.items.length > 0 && (
                   <ul className="mt-1 list-disc space-y-0.5 pl-6">
