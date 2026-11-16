@@ -1,20 +1,31 @@
 import { useState } from 'react'
 import { PlusIcon, SearchIcon } from '../../components/icons'
 import { Card, EmptyState, ErrorMessage, inputClass, Sheet, Spinner } from '../../components/ui'
+import PopularProducts from '../Search/PopularProducts'
 import ProductRow from '../Search/ProductRow'
-import { useProductSearch } from '../Search/catalog'
+import { useProductSearch, usesOf } from '../Search/catalog'
 
 /** Search the Pemko catalog and add products to the open quote. */
 export default function AddProductSheet({ onAdd, onClose }) {
   const [query, setQuery] = useState('')
   const [busyId, setBusyId] = useState(null)
-  const { results, error, searching, enabled } = useProductSearch(query)
+  const { results, usage, error, searching, enabled } = useProductSearch(query)
 
   async function add(product) {
     setBusyId(product.id)
     await onAdd(product)
     setBusyId(null)
   }
+
+  const addButton = (p) => (
+    <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+      {busyId === p.id ? (
+        <span className="size-4 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700" />
+      ) : (
+        <PlusIcon className="size-5" />
+      )}
+    </span>
+  )
 
   return (
     <Sheet open title="Add products" onClose={onClose}>
@@ -33,7 +44,12 @@ export default function AddProductSheet({ onAdd, onClose }) {
       </div>
       <div className="mt-3">
         <ErrorMessage error={error} />
-        {!enabled && <EmptyState title="Search the catalog">Tap a product to add it to this quote.</EmptyState>}
+        {!enabled && (
+          <div className="space-y-3">
+            <p className="px-1 text-sm text-slate-500">Search by SKU or keyword, or tap one of your usual parts.</p>
+            <PopularProducts onPick={add} renderTrailing={(p) => addButton(p)} />
+          </div>
+        )}
         {enabled && searching && results.length === 0 && <Spinner label="Searching…" />}
         {enabled && !searching && results.length === 0 && <EmptyState title="No products found" />}
         {results.length > 0 && (
@@ -42,16 +58,9 @@ export default function AddProductSheet({ onAdd, onClose }) {
               <ProductRow
                 key={p.id}
                 product={p}
+                uses={usesOf(usage, p.id)}
                 onClick={add}
-                trailing={
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
-                    {busyId === p.id ? (
-                      <span className="size-4 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700" />
-                    ) : (
-                      <PlusIcon className="size-5" />
-                    )}
-                  </span>
-                }
+                trailing={addButton(p)}
               />
             ))}
           </Card>

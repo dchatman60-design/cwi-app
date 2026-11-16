@@ -1,9 +1,11 @@
-import { TrashIcon } from '../../components/icons'
+import { useState } from 'react'
+import { EditIcon, TrashIcon } from '../../components/icons'
 import NumberInput from '../../components/NumberInput'
 import { Badge, Card, inputClass } from '../../components/ui'
 import { currency, formatMeasurement, trimNumber } from '../../lib/format'
 import { partLabel } from '../Drawing/measurementParts'
 import { hasRealDescription } from '../Search/catalog'
+import { EditDescriptionById } from '../Search/EditDescriptionSheet'
 import { isService, SERVICE_UNITS, toBillableFeet } from './quotes'
 
 /**
@@ -13,6 +15,7 @@ import { isService, SERVICE_UNITS, toBillableFeet } from './quotes'
  */
 export default function QuoteItemRow({ item, measurements = [], onUpdate, onRemove }) {
   const service = isService(item)
+  const [describing, setDescribing] = useState(false)
   const unitLabel = service
     ? SERVICE_UNITS.find((u) => u.value === item.uom)?.label || item.uom || 'each'
     : item.uom && item.uom !== 'ea'
@@ -41,9 +44,28 @@ export default function QuoteItemRow({ item, measurements = [], onUpdate, onRemo
           ) : (
             <>
               <div className="font-bold break-all">{item.sku}</div>
-              <div className="text-sm break-words text-slate-600">
+              <div className={`text-sm break-words ${hasRealDescription(item) ? 'text-slate-600' : 'text-slate-400 italic'}`}>
                 {hasRealDescription(item) ? item.description : 'No description on file'}
               </div>
+              {item.product_id && (
+                <button
+                  type="button"
+                  onClick={() => setDescribing(true)}
+                  className="-ml-1 inline-flex min-h-9 items-center gap-1 px-1 text-sm font-medium text-blue-700"
+                >
+                  <EditIcon className="size-4" />
+                  {hasRealDescription(item) ? 'Edit description' : 'Add description'}
+                </button>
+              )}
+              {describing && (
+                <EditDescriptionById
+                  productId={item.product_id}
+                  onClose={() => setDescribing(false)}
+                  onSaved={(saved) => {
+                    if (saved.description !== item.description) onUpdate({ description: saved.description })
+                  }}
+                />
+              )}
             </>
           )}
         </div>

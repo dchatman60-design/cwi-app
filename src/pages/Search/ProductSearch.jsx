@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { SearchIcon } from '../../components/icons'
+import { EditIcon } from '../../components/icons'
 import { Button, Card, EmptyState, ErrorMessage, inputClass, PageHeader, Sheet, Spinner } from '../../components/ui'
 import { currency } from '../../lib/format'
 import AddToQuoteSheet from './AddToQuoteSheet'
+import EditDescriptionSheet from './EditDescriptionSheet'
+import PopularProducts from './PopularProducts'
 import ProductRow from './ProductRow'
-import { CATEGORIES, hasRealDescription, priceLabel, useProductSearch } from './catalog'
+import { CATEGORIES, hasRealDescription, priceLabel, useProductSearch, usesOf } from './catalog'
 
 const DETAIL_FIELDS = [
   ['category', 'Product type'],
@@ -21,7 +24,7 @@ const DETAIL_FIELDS = [
   ['notes', 'Notes'],
 ]
 
-function ProductDetail({ product, onClose, onAddToQuote }) {
+function ProductDetail({ product, uses, onClose, onAddToQuote, onEdit }) {
   return (
     <Sheet
       open
@@ -40,6 +43,15 @@ function ProductDetail({ product, onClose, onAddToQuote }) {
       <p className={`mt-3 ${hasRealDescription(product) ? 'text-slate-800' : 'text-slate-400 italic'}`}>
         {hasRealDescription(product) ? product.description : 'No description on file for this SKU.'}
       </p>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-3 font-medium text-blue-700 ring-1 ring-slate-200 active:bg-slate-50"
+      >
+        <EditIcon className="size-4" />
+        {hasRealDescription(product) ? 'Edit description' : 'Add a description'}
+      </button>
+      {uses > 0 && <p className="mt-2 text-sm text-amber-800">Used {uses}× on quotes</p>}
       <Card className="mt-4 divide-y divide-slate-100">
         <div className="px-4 py-3">
           <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Part number</div>
@@ -61,7 +73,11 @@ export default function ProductSearch() {
   const [category, setCategory] = useState('')
   const [selected, setSelected] = useState(null)
   const [adding, setAdding] = useState(null)
-  const { results, error, searching, enabled, maxed } = useProductSearch(query, category)
+  const [editing, setEditing] = useState(null)
+  const [edited, setEdited] = useState({}) // id → product saved this visit
+  const { results: rawResults, usage, error, searching, enabled, maxed } = useProductSearch(query, category)
+  const results = rawResults.map((p) => edited[p.id] || p)
+  const current = selected && (edited[selected.id] || selected)
 
   return (
     <div>
@@ -93,7 +109,10 @@ export default function ProductSearch() {
       <div className="px-4">
         <ErrorMessage error={error} />
         {!enabled && (
-          <EmptyState title="Search 5,336 Pemko products">Type a part number or keyword, or pick a product type.</EmptyState>
+          <>
+            <EmptyState title="Search 5,336 Pemko products">Type a part number or keyword, or pick a product type.</EmptyState>
+            <PopularProducts onPick={setSelected} edited={edited} />
+          </>
         )}
         {enabled && searching && results.length === 0 && <Spinner label="Searching…" />}
         {enabled && !searching && results.length === 0 && !error && (
@@ -103,7 +122,7 @@ export default function ProductSearch() {
           <>
             <Card className={`divide-y divide-slate-100 ${searching ? 'opacity-60' : ''}`}>
               {results.map((p) => (
-                <ProductRow key={p.id} product={p} onClick={setSelected} />
+                <ProductRow key={p.id} product={p} uses={usesOf(usage, p.id)} onClick={setSelected} />
               ))}
             </Card>
             {maxed && (
@@ -115,8 +134,21 @@ export default function ProductSearch() {
         )}
       </div>
 
-      {selected && !adding && (
-        <ProductDetail product={selected} onClose={() => setSelected(null)} onAddToQuote={() => setAdding(selected)} />
+      {current && !adding && !editing && (
+        <ProductDetail
+          product={current}
+          uses={usesOf(usage, current.id)}
+          onClose={() => setSelected(null)}
+          onAddToQuote={() => setAdding(current)}
+          onEdit={() => setEditing(current)}
+        />
+      )}
+      {editing && (
+        <EditDescriptionSheet
+          product={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(saved) => setEdited((m) => ({ ...m, [saved.id]: saved }))}
+        />
       )}
       {adding && (
         <AddToQuoteSheet
