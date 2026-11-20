@@ -74,30 +74,43 @@ export default function OpeningsTab({ job }) {
 
       {openings?.length > 0 && <OpeningTotals openings={openings} />}
 
-      {openings?.length > 0 && (
-        <Card className="divide-y divide-slate-100">
-          {openings.map((o) => {
-            const m = counts.data?.measurements[o.id] || 0
-            const p = counts.data?.photos[o.id] || 0
-            return (
-              <Link key={o.id} to={`/jobs/${job.id}/openings/${o.id}`} className="block min-h-16 px-4 py-3 active:bg-slate-50">
-                <div className="flex items-start justify-between gap-2">
-                  <span className="font-semibold break-words">{o.opening_name}</span>
-                  <div className="flex shrink-0 flex-wrap justify-end gap-1">
-                    {o.is_fire_rated && <Badge tone="redSoft">Fire-rated</Badge>}
-                    {o.is_complex && <Badge tone="amber">Review</Badge>}
-                  </div>
-                </div>
-                <div className="text-sm text-slate-500">
-                  {openingTypeLabel(o.opening_type)}
-                  {doorsLabel(o) && o.opening_type === 'double_door' && ` (${doorsLabel(o)})`}
-                  {counts.data && ` · ${plural(m, 'measurement')} · ${plural(p, 'photo')}`}
-                </div>
-              </Link>
-            )
-          })}
-        </Card>
-      )}
+      {openings?.length > 0 &&
+        [
+          { key: 'doors', title: 'Doors', list: openings.filter((o) => o.opening_type !== 'window') },
+          { key: 'windows', title: 'Windows', list: openings.filter((o) => o.opening_type === 'window') },
+        ]
+          .filter((sec) => sec.list.length)
+          .map((sec, _i, all) => (
+            <section key={sec.key}>
+              {all.length > 1 && (
+                <h3 className="mb-1.5 px-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                  {sec.title} ({sec.list.length})
+                </h3>
+              )}
+              <Card className="divide-y divide-slate-100">
+                {sec.list.map((o) => {
+                  const m = counts.data?.measurements[o.id] || 0
+                  const p = counts.data?.photos[o.id] || 0
+                  return (
+                    <Link key={o.id} to={`/jobs/${job.id}/openings/${o.id}`} className="block min-h-16 px-4 py-3 active:bg-slate-50">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-semibold break-words">{o.opening_name}</span>
+                        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                          {o.is_fire_rated && <Badge tone="redSoft">Fire-rated</Badge>}
+                          {o.is_complex && <Badge tone="amber">Review</Badge>}
+                        </div>
+                      </div>
+                      <div className="text-sm text-slate-500">
+                        {openingTypeLabel(o.opening_type)}
+                        {doorsLabel(o) && o.opening_type === 'double_door' && ` (${doorsLabel(o)})`}
+                        {counts.data && ` · ${plural(m, 'measurement')} · ${plural(p, 'photo')}`}
+                      </div>
+                    </Link>
+                  )
+                })}
+              </Card>
+            </section>
+          ))}
 
       {(unassignedMeasurements > 0 || unassignedPhotos > 0) && (
         <div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-4">

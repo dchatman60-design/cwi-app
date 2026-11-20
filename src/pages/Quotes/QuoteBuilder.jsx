@@ -34,8 +34,10 @@ const QUOTE_SELECT =
 function buildSections(openings, items, measurements) {
   const ids = new Set(openings.map((o) => o.id))
   const sorted = sortByPart(measurements)
+  // Doors first, then windows (the proposal prints them as separate sections)
+  const ordered = [...openings.filter((o) => o.opening_type !== 'window'), ...openings.filter((o) => o.opening_type === 'window')]
   return [
-    ...openings.map((opening) => ({
+    ...ordered.map((opening) => ({
       key: opening.id,
       opening,
       items: items.filter((i) => i.opening_id === opening.id),

@@ -81,9 +81,19 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
     section: sec,
   }))
   // With details on, every door is listed on its own with its products
-  const groups = showDetails
-    ? doors.map((d) => ({ key: d.id, label: d.opening_name, items: scopeLines(d), openings: [d] }))
-    : groupByScope(doors)
+  const toGroups = (list) =>
+    showDetails
+      ? list.map((d) => ({ key: d.id, label: d.opening_name, items: scopeLines(d), openings: [d] }))
+      : groupByScope(list)
+  // Doors and windows print as separate sections (headed only when both are present)
+  const doorList = doors.filter((d) => d.opening_type !== 'window')
+  const windowList = doors.filter((d) => d.opening_type === 'window')
+  const scopeSections = [
+    { key: 'doors', title: 'Doors', groups: toGroups(doorList) },
+    { key: 'windows', title: 'Windows', groups: toGroups(windowList) },
+  ].filter((sec) => sec.groups.length)
+  const groups = scopeSections.flatMap((sec) => sec.groups)
+  const headed = scopeSections.length > 1
   const generalItems = sections.find((sec) => !sec.opening)?.items || []
   const counts = countOpenings(doors)
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`
@@ -164,7 +174,6 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
             {counts.openings > 0 && (
               <div className="font-semibold">
                 {plural(counts.openings, 'opening')} · {plural(counts.doors, 'door')}
-                {counts.windows > 0 && ` · ${plural(counts.windows, 'window')}`}
               </div>
             )}
           </div>
@@ -174,45 +183,52 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
           )}
 
           <div className="mt-4 space-y-4 print:mt-2 print:space-y-2">
-            {groups.map((g) => (
-              <div key={g.key} className="break-inside-avoid pl-4 sm:pl-6">
-                <div className="font-semibold break-words">
-                  {g.label}
-                  {groupCount(g) && <span className="font-normal text-slate-600"> ({groupCount(g)})</span>}
-                </div>
-                {g.items.length > 0 && (
-                  <ul className="mt-1 list-disc space-y-0.5 pl-6">
-                    {g.items.map((line) => (
-                      <li key={line} className="break-words">
-                        {line}
-                      </li>
-                    ))}
-                  </ul>
+            {scopeSections.map((sec) => (
+              <div key={sec.key} className="space-y-4 print:space-y-2">
+                {headed && (
+                  <h3 className="border-b border-slate-300 pb-0.5 text-sm font-bold tracking-wide uppercase">{sec.title}</h3>
                 )}
-                {showDetails &&
-                  g.openings.map((d) =>
-                    d.section.items.length ? (
-                      <ul key={d.id} className="mt-1 space-y-0.5 pl-6 text-sm text-slate-600">
-                        {d.section.items.map((item) => (
-                          <li key={item.id} className="break-words">
-                            {qtyLabel(item) && <span className="mr-1">{qtyLabel(item)} ×</span>}
-                            {isService(item) ? item.description : `Pemko ${item.sku}${hasRealDescription(item) ? ` — ${item.description}` : ''}`}
+                {sec.groups.map((g) => (
+                  <div key={g.key} className="break-inside-avoid pl-4 sm:pl-6">
+                    <div className="font-semibold break-words">
+                      {g.label}
+                      {groupCount(g) && <span className="font-normal text-slate-600"> ({groupCount(g)})</span>}
+                    </div>
+                    {g.items.length > 0 && (
+                      <ul className="mt-1 list-disc space-y-0.5 pl-6">
+                        {g.items.map((line) => (
+                          <li key={line} className="break-words">
+                            {line}
                           </li>
                         ))}
                       </ul>
-                    ) : null,
-                  )}
-                {showDetails &&
-                  g.openings.map((d) =>
-                    diagramsByOpening[d.id] ? (
-                      <SignedImage
-                        key={`dia-${d.id}`}
-                        layer={3}
-                        path={diagramsByOpening[d.id]}
-                        className="mt-2 w-full rounded border border-slate-200 object-contain"
-                      />
-                    ) : null,
-                  )}
+                    )}
+                    {showDetails &&
+                      g.openings.map((d) =>
+                        d.section.items.length ? (
+                          <ul key={d.id} className="mt-1 space-y-0.5 pl-6 text-sm text-slate-600">
+                            {d.section.items.map((item) => (
+                              <li key={item.id} className="break-words">
+                                {qtyLabel(item) && <span className="mr-1">{qtyLabel(item)} ×</span>}
+                                {isService(item) ? item.description : `Pemko ${item.sku}${hasRealDescription(item) ? ` — ${item.description}` : ''}`}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null,
+                      )}
+                    {showDetails &&
+                      g.openings.map((d) =>
+                        diagramsByOpening[d.id] ? (
+                          <SignedImage
+                            key={`dia-${d.id}`}
+                            layer={3}
+                            path={diagramsByOpening[d.id]}
+                            className="mt-2 w-full rounded border border-slate-200 object-contain"
+                          />
+                        ) : null,
+                      )}
+                  </div>
+                ))}
               </div>
             ))}
             {generalItems.length > 0 && (
