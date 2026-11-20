@@ -34,13 +34,13 @@ const FINISHABLE = /^(furnish and install )((?:[\w-]+ )*?)(weatherstripping|thre
 
 /**
  * "Furnish and install threshold" + Brass → "Furnish and install brass threshold";
- * "Furnish and install interlocking weatherstripping" → "… interlocking brass weatherstripping".
+ * "Furnish and install interlocking weatherstripping" → "… brass interlocking weatherstripping".
  */
 export function withFinish(line, finish) {
   const f = (finish || '').trim()
   if (!f) return line
   const m = line.trim().match(FINISHABLE)
-  return m ? `${m[1]}${m[2]}${f.toLowerCase()} ${m[3]}` : line
+  return m ? `${m[1]}${f.toLowerCase()} ${m[2]}${m[3]}` : line
 }
 
 const PART_KEYS = [
