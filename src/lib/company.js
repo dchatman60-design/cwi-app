@@ -16,4 +16,8 @@ export const COMPANY = {
   signer: 'Mike Siebuhr',
 }
 
+/** Shown above the openings with no work on the proposal (when that list is turned on). */
+export const DEFAULT_UNWORKED_NOTE =
+  'The openings below are OK as is and are not included in this proposal. We recommend tuning them up by replacing the weatherstripping, as the rubber is starting to deteriorate.'
+
 export const DEFAULT_SCOPE_INTRO = 'Furnish and install weatherstrip'

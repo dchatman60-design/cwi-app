@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PlusIcon } from '../../components/icons'
 import NumberInput from '../../components/NumberInput'
 import { Badge, Button, Card, EmptyState, ErrorMessage, Field, inputClass, PageHeader, Segmented, Spinner } from '../../components/ui'
-import { DEFAULT_SCOPE_INTRO } from '../../lib/company'
+import { DEFAULT_SCOPE_INTRO, DEFAULT_UNWORKED_NOTE } from '../../lib/company'
 import { currency, formatMeasurement, trimNumber } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
@@ -412,6 +412,35 @@ export default function QuoteBuilder() {
               </span>
             </span>
           </label>
+          <label className="flex min-h-11 items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1 size-5 accent-blue-700"
+              checked={Boolean(quote.show_unworked)}
+              onChange={(e) => updateQuote({ show_unworked: e.target.checked })}
+            />
+            <span>
+              <span className="font-medium">List openings with no work</span>
+              <span className="block text-xs text-slate-500">
+                Adds a &ldquo;Not included at this time&rdquo; section naming the openings that are OK as is, with the
+                recommendation below. Openings whose notes say &ldquo;out of scope&rdquo; are listed separately.
+              </span>
+            </span>
+          </label>
+          {quote.show_unworked && (
+            <Field label="Recommendation for those openings">
+              <textarea
+                key={quote.unworked_note ?? ''}
+                className={`${inputClass} min-h-20`}
+                defaultValue={quote.unworked_note || DEFAULT_UNWORKED_NOTE}
+                onBlur={(e) => {
+                  const v = e.target.value.trim()
+                  const next = !v || v === DEFAULT_UNWORKED_NOTE ? null : v
+                  if (next !== (quote.unworked_note ?? null)) updateQuote({ unworked_note: next })
+                }}
+              />
+            </Field>
+          )}
           <Field label="Notes (shown on the proposal)">
             <textarea
               key={quote.notes ?? ''}

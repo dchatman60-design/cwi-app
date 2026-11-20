@@ -3,7 +3,7 @@ import { LogoMark } from '../../components/Logo'
 import SignedImage from '../../components/SignedImage'
 import { useState } from 'react'
 import { Button, Segmented } from '../../components/ui'
-import { COMPANY, DEFAULT_SCOPE_INTRO } from '../../lib/company'
+import { COMPANY, DEFAULT_SCOPE_INTRO, DEFAULT_UNWORKED_NOTE } from '../../lib/company'
 import { currency, parseLocalDate, trimNumber } from '../../lib/format'
 import { hasRealDescription } from '../Search/catalog'
 import { countOpenings, doorsIn } from '../Openings/openings'
@@ -93,6 +93,19 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
     { key: 'windows', title: 'Windows', groups: toGroups(windowList) },
   ].filter((sec) => sec.groups.length)
   const groups = scopeSections.flatMap((sec) => sec.groups)
+  // Openings with no work this time — listed (with a recommendation) when the quote asks for it
+  const unworked = quote.show_unworked
+    ? sections
+        .filter((sec) => sec.opening && !sec.items.length && !(sec.opening.scope_items || []).length)
+        .map((sec) => sec.opening)
+    : []
+  const isOutOfScope = (o) => /out of scope/i.test(o.notes || '')
+  const recommended = unworked.filter((o) => !isOutOfScope(o))
+  const outOfScope = unworked.filter(isOutOfScope)
+  const unworkedSections = [
+    { key: 'doors', title: 'Doors', list: recommended.filter((o) => o.opening_type !== 'window') },
+    { key: 'windows', title: 'Windows', list: recommended.filter((o) => o.opening_type === 'window') },
+  ].filter((sec) => sec.list.length)
   const headed = scopeSections.length > 1
   const generalItems = sections.find((sec) => !sec.opening)?.items || []
   const counts = countOpenings(doors)
@@ -246,6 +259,39 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
             {!groups.length && !generalItems.length && <p className="pl-6 text-sm text-slate-500 italic">No doors on this quote yet.</p>}
           </div>
         </section>
+
+        {unworked.length > 0 && (
+          <section className="mt-6 print:mt-4">
+            <h2 className="font-bold uppercase">Not included at this time:</h2>
+            {recommended.length > 0 && <p className="mt-2">{quote.unworked_note || DEFAULT_UNWORKED_NOTE}</p>}
+            <div className="mt-3 space-y-3 pl-4 sm:pl-6 print:mt-2 print:space-y-2">
+              {unworkedSections.map((sec) => (
+                <div key={sec.key} className="break-inside-avoid">
+                  {unworkedSections.length > 1 && <div className="font-semibold">{sec.title}</div>}
+                  <ul className="mt-1 list-disc gap-x-8 pl-6 sm:columns-2 print:columns-2 print:text-[13px]">
+                    {sec.list.map((o) => (
+                      <li key={o.id} className="break-inside-avoid break-words">
+                        {o.opening_name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              {outOfScope.length > 0 && (
+                <div className="break-inside-avoid">
+                  <div className="font-semibold">Out of scope</div>
+                  <ul className="mt-1 list-disc pl-6">
+                    {outOfScope.map((o) => (
+                      <li key={o.id} className="break-words">
+                        {o.opening_name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         <div className="mt-8 text-lg font-bold print:mt-4">Total Job: {currency(totals.total)}</div>
 
