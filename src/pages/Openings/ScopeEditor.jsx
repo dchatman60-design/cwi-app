@@ -3,7 +3,7 @@ import { PlusIcon } from '../../components/icons'
 import { Card, inputClass } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
-import { FINISHES, mainScope, scopePresets, withFinish } from './scope'
+import { FINISHES, mainScope, scopePart, scopePresets, withFinish } from './scope'
 
 const boxClass = inputClass.replace('block w-full ', '')
 
@@ -17,8 +17,17 @@ export default function ScopeEditor({ opening, onSaved }) {
   const main = mainScope(opening.opening_type)
   const presets = scopePresets(opening.opening_type)
   const others = presets.filter((p) => !main.some((m) => m.line === p))
-  const extras = items.filter((i) => !presets.some((p) => p.toLowerCase() === i.toLowerCase()))
-  const has = (line) => items.some((i) => i.toLowerCase() === line.toLowerCase())
+  const same = (a, b) => a.toLowerCase() === b.toLowerCase()
+  const has = (line) => items.some((i) => same(i, line))
+  // A main checkbox is on for its plain line or any variant of the same part
+  // ("interlocking weatherstripping" checks Weatherstrip)
+  const samePart = (a, b) => {
+    const pa = scopePart(a)
+    const pb = scopePart(b)
+    return Boolean(pa && pb && pa.key === pb.key)
+  }
+  const mainItem = (m) => items.find((i) => same(i, m.line) || samePart(i, m.line))
+  const extras = items.filter((i) => !presets.some((p) => same(p, i)) && !main.some((m) => samePart(i, m.line)))
   const [finish, setFinish] = useState(opening.finish || '')
   const [customFinish, setCustomFinish] = useState(
     opening.finish && !FINISHES.includes(opening.finish) ? opening.finish : '',
@@ -50,13 +59,22 @@ export default function ScopeEditor({ opening, onSaved }) {
     }
   }
 
-  const toggle = (line) => save(has(line) ? items.filter((i) => i.toLowerCase() !== line.toLowerCase()) : [...items, line])
+  // Adding a line for a part that's already there swaps it ("weatherstripping" → "interlocking weatherstripping")
+  const add = (line) => {
+    const without = scopePart(line) ? items.filter((i) => !samePart(i, line)) : items
+    return save([...without, line])
+  }
+  const toggle = (line) => (has(line) ? save(items.filter((i) => !same(i, line))) : add(line))
+  const toggleMain = (m) => {
+    const current = mainItem(m)
+    return current ? save(items.filter((i) => i !== current)) : add(m.line)
+  }
 
   function addCustom(e) {
     e.preventDefault()
     const line = custom.trim()
     if (!line) return
-    if (!has(line)) save([...items, line])
+    if (!has(line)) add(line)
     setCustom('')
   }
 
@@ -67,17 +85,24 @@ export default function ScopeEditor({ opening, onSaved }) {
         <p className="text-xs text-slate-500">Listed under this door on the proposal (as &ldquo;Furnish and install …&rdquo;). The proposal shows one total, not per-door prices.</p>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        {main.map((m) => (
-          <label
-            key={m.line}
-            className={`flex min-h-12 min-w-0 items-center gap-2 rounded-lg border px-2.5 text-[15px] leading-tight font-semibold first:col-span-2 ${
-              has(m.line) ? 'border-blue-700 bg-blue-50 text-blue-900' : 'border-slate-300 bg-white text-slate-800'
-            }`}
-          >
-            <input type="checkbox" className="size-5 shrink-0 accent-blue-700" checked={has(m.line)} onChange={() => toggle(m.line)} />
-            <span className="min-w-0">{m.label}</span>
-          </label>
-        ))}
+        {main.map((m) => {
+          const current = mainItem(m)
+          const variant = current && scopePart(current)?.variant
+          return (
+            <label
+              key={m.line}
+              className={`flex min-h-12 min-w-0 items-center gap-2 rounded-lg border px-2.5 text-[15px] leading-tight font-semibold first:col-span-2 ${
+                current ? 'border-blue-700 bg-blue-50 text-blue-900' : 'border-slate-300 bg-white text-slate-800'
+              }`}
+            >
+              <input type="checkbox" className="size-5 shrink-0 accent-blue-700" checked={Boolean(current)} onChange={() => toggleMain(m)} />
+              <span className="min-w-0">
+                {m.label}
+                {variant && <span className="block text-xs font-medium capitalize">{variant}</span>}
+              </span>
+            </label>
+          )
+        })}
       </div>
       <div>
         <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Finish</div>

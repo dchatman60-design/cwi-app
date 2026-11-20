@@ -17,6 +17,7 @@ export function mainScope(openingType) {
 export function scopePresets(openingType) {
   return [
     ...mainScope(openingType).map((m) => m.line),
+    'Furnish and install interlocking weatherstripping',
     'Furnish and install door bottom',
     'Furnish and install astragal',
     'Furnish and install V-seal',
@@ -27,15 +28,35 @@ export function scopePresets(openingType) {
 /** Finishes offered per door; printed into the material lines on the proposal. */
 export const FINISHES = ['Brass', 'Dark bronze', 'Mill aluminum', 'Clear anodized', 'Black', 'White']
 
-// Lines that name a part the finish applies to
-const FINISHABLE = /^(furnish and install )(weatherstripping|thresholds?|sill covers?|door sweeps?|door bottoms?|astragals?)$/i
+// Lines that name a part the finish applies to, with optional type words
+// before it: "Furnish and install interlocking weatherstripping"
+const FINISHABLE = /^(furnish and install )((?:[\w-]+ )*?)(weatherstripping|thresholds?|sill covers?|door sweeps?|door bottoms?|astragals?)$/i
 
-/** "Furnish and install threshold" + Brass → "Furnish and install brass threshold". */
+/**
+ * "Furnish and install threshold" + Brass → "Furnish and install brass threshold";
+ * "Furnish and install interlocking weatherstripping" → "… interlocking brass weatherstripping".
+ */
 export function withFinish(line, finish) {
   const f = (finish || '').trim()
   if (!f) return line
   const m = line.trim().match(FINISHABLE)
-  return m ? `${m[1]}${f.toLowerCase()} ${m[2]}` : line
+  return m ? `${m[1]}${m[2]}${f.toLowerCase()} ${m[3]}` : line
+}
+
+const PART_KEYS = [
+  [/weatherstrip/i, 'weatherstrip'],
+  [/threshold/i, 'threshold'],
+  [/sill cover/i, 'sill cover'],
+  [/sweep/i, 'sweep'],
+  [/door bottom/i, 'door bottom'],
+  [/astragal/i, 'astragal'],
+]
+/** Which part a "Furnish and install …" line is for, and its type words ("interlocking"). */
+export function scopePart(line) {
+  const m = (line || '').trim().match(FINISHABLE)
+  if (!m) return null
+  const key = PART_KEYS.find(([re]) => re.test(m[3]))?.[1]
+  return key ? { key, variant: m[2].trim() } : null
 }
 
 /** A door's scope lines as the proposal prints them (finish applied, in order). */
