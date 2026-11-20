@@ -7,7 +7,7 @@ import { COMPANY, DEFAULT_SCOPE_INTRO } from '../../lib/company'
 import { currency, parseLocalDate, trimNumber } from '../../lib/format'
 import { hasRealDescription } from '../Search/catalog'
 import { countOpenings, doorsIn } from '../Openings/openings'
-import { groupByScope, sortScope } from '../Openings/scope'
+import { groupByScope, scopeLines } from '../Openings/scope'
 import InternalBreakdown from './InternalBreakdown'
 import { isService, quoteTitle, SERVICE_UNITS } from './quotes'
 
@@ -82,7 +82,7 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
   }))
   // With details on, every door is listed on its own with its products
   const groups = showDetails
-    ? doors.map((d) => ({ key: d.id, label: d.opening_name, items: sortScope(d.scope_items), openings: [d] }))
+    ? doors.map((d) => ({ key: d.id, label: d.opening_name, items: scopeLines(d), openings: [d] }))
     : groupByScope(doors)
   const generalItems = sections.find((sec) => !sec.opening)?.items || []
   const counts = countOpenings(doors)

@@ -3,7 +3,7 @@ import { PlusIcon } from '../../components/icons'
 import { Card, inputClass } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
-import { mainScope, scopePresets } from './scope'
+import { FINISHES, mainScope, scopePresets, withFinish } from './scope'
 
 const boxClass = inputClass.replace('block w-full ', '')
 
@@ -19,6 +19,24 @@ export default function ScopeEditor({ opening, onSaved }) {
   const others = presets.filter((p) => !main.some((m) => m.line === p))
   const extras = items.filter((i) => !presets.some((p) => p.toLowerCase() === i.toLowerCase()))
   const has = (line) => items.some((i) => i.toLowerCase() === line.toLowerCase())
+  const [finish, setFinish] = useState(opening.finish || '')
+  const [customFinish, setCustomFinish] = useState(
+    opening.finish && !FINISHES.includes(opening.finish) ? opening.finish : '',
+  )
+
+  async function saveFinish(next, { allDoors = false } = {}) {
+    const previous = finish
+    setFinish(next)
+    let query = supabase.from('openings').update({ finish: next || null })
+    query = allDoors ? query.eq('job_id', opening.job_id) : query.eq('id', opening.id)
+    const { error } = await query
+    if (error) {
+      setFinish(previous)
+      toast(error.message, 'error')
+    } else if (allDoors) {
+      toast(next ? `${next} set on every door on this job` : 'Finish cleared on every door on this job')
+    }
+  }
 
   async function save(next) {
     const previous = items
@@ -60,6 +78,40 @@ export default function ScopeEditor({ opening, onSaved }) {
             <span className="min-w-0">{m.label}</span>
           </label>
         ))}
+      </div>
+      <div>
+        <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Finish</div>
+        <p className="text-xs text-slate-500">
+          Printed on the proposal, e.g. &ldquo;{withFinish('Furnish and install threshold', finish || 'Brass')}&rdquo;.
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {['', ...FINISHES].map((f) => (
+            <button
+              key={f || 'none'}
+              type="button"
+              aria-pressed={finish === f}
+              onClick={() => saveFinish(f)}
+              className={`min-h-10 rounded-full border px-3 text-sm font-medium ${
+                finish === f ? 'border-blue-700 bg-blue-700 text-white' : 'border-slate-300 bg-white text-slate-700'
+              }`}
+            >
+              {f || 'None'}
+            </button>
+          ))}
+          <input
+            className={`${boxClass} min-h-10 w-32 rounded-full py-1 text-sm`}
+            placeholder="Other…"
+            aria-label="Other finish"
+            value={customFinish}
+            onChange={(e) => setCustomFinish(e.target.value)}
+            onBlur={() => customFinish.trim() && customFinish.trim() !== finish && saveFinish(customFinish.trim())}
+          />
+        </div>
+        {finish && (
+          <button type="button" className="mt-2 text-sm font-medium text-blue-700" onClick={() => saveFinish(finish, { allDoors: true })}>
+            Use {finish.toLowerCase()} on every door on this job
+          </button>
+        )}
       </div>
       <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Other work</div>
       <div className="flex flex-wrap gap-2">

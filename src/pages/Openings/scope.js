@@ -24,6 +24,24 @@ export function scopePresets(openingType) {
   ]
 }
 
+/** Finishes offered per door; printed into the material lines on the proposal. */
+export const FINISHES = ['Brass', 'Dark bronze', 'Mill aluminum', 'Clear anodized', 'Black', 'White']
+
+// Lines that name a part the finish applies to
+const FINISHABLE = /^(furnish and install )(weatherstripping|thresholds?|sill covers?|door sweeps?|door bottoms?|astragals?)$/i
+
+/** "Furnish and install threshold" + Brass → "Furnish and install brass threshold". */
+export function withFinish(line, finish) {
+  const f = (finish || '').trim()
+  if (!f) return line
+  const m = line.trim().match(FINISHABLE)
+  return m ? `${m[1]}${f.toLowerCase()} ${m[2]}` : line
+}
+
+/** A door's scope lines as the proposal prints them (finish applied, in order). */
+export const scopeLines = (opening) =>
+  sortScope((opening.scope_items || []).filter((s) => s && s.trim())).map((l) => withFinish(l, opening.finish))
+
 const scopeKey = (items) => items.map((s) => s.trim().toLowerCase()).join('|')
 
 // Proposal order: remove & rehang, then the furnish-and-install work, then anything typed in
@@ -60,7 +78,7 @@ export function groupByScope(openings) {
   const groups = []
   const byKey = new Map()
   for (const o of openings) {
-    const items = sortScope((o.scope_items || []).filter((s) => s && s.trim()))
+    const items = scopeLines(o)
     if (!items.length) {
       groups.push({ key: o.id, openings: [o], items: [] })
       continue
