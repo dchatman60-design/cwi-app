@@ -441,6 +441,14 @@ export default function QuoteBuilder() {
               />
             </Field>
           )}
+          <Field label="Price clarification (under Total Job)" hint="What the price counts and what it doesn't — e.g. how many doors and windows, and that the openings not listed are excluded.">
+            <textarea
+              key={quote.total_note ?? ''}
+              className={`${inputClass} min-h-20`}
+              defaultValue={quote.total_note ?? ''}
+              onBlur={(e) => e.target.value.trim() !== (quote.total_note ?? '') && updateQuote({ total_note: e.target.value.trim() || null })}
+            />
+          </Field>
           <Field label="Notes (shown on the proposal)">
             <textarea
               key={quote.notes ?? ''}

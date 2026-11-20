@@ -294,6 +294,9 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
         )}
 
         <div className="mt-8 text-lg font-bold print:mt-4">Total Job: {currency(totals.total)}</div>
+        {quote.total_note && (
+          <p className="mt-1 max-w-2xl text-sm whitespace-pre-line text-slate-700 print:text-[13px]">{quote.total_note}</p>
+        )}
 
         {/* Payment terms: half on signing, half on completion */}
         <section className="mt-4 max-w-md break-inside-avoid print:mt-2">
