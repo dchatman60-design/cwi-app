@@ -18,6 +18,6 @@ export const COMPANY = {
 
 /** Shown above the openings with no work on the proposal (when that list is turned on). */
 export const DEFAULT_UNWORKED_NOTE =
-  'The openings below are OK as is and are not included in this proposal. We recommend tuning them up by replacing the weatherstripping, as the rubber is starting to deteriorate.'
+  'The openings below are OK as is and are not included in this proposal. However, their weatherstripping is beginning to deteriorate and will eventually need to be replaced. We recommend upgrading the weatherstripping on these openings now so that all of the windows and doors are uniform and sealed to the same standard.'
 
 export const DEFAULT_SCOPE_INTRO = 'Furnish and install weatherstrip'
