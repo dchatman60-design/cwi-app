@@ -270,16 +270,16 @@ export default function QuoteBuilder() {
                 {opening && (
                   <div className="flex flex-wrap items-center gap-1.5 text-sm text-slate-500">
                     {openingTypeLabel(opening.opening_type)}
-                    {doorsIn(opening) === 2 && ' · 2 doors'}
+                    {doorsIn(opening) > 1 && ` · ${doorsIn(opening)} doors`}
                     {opening.is_fire_rated && <Badge tone="redSoft">Fire-rated</Badge>}
                   </div>
                 )}
               </div>
               <span className="shrink-0 text-right">
                 <span className="block font-bold">{currency(linesSubtotal(quote, section.items))}</span>
-                {doorsIn(opening) === 2 && section.items.length > 0 && (
+                {doorsIn(opening) > 1 && section.items.length > 0 && (
                   <span className="block text-xs text-slate-500">
-                    {currency(linesSubtotal(quote, section.items) / 2)} / door
+                    {currency(linesSubtotal(quote, section.items) / doorsIn(opening))} / door
                   </span>
                 )}
               </span>

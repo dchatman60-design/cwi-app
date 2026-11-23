@@ -108,7 +108,7 @@ export default function InternalBreakdown({ quote, sections, totals, deposit, ba
             <section key={section.key} className="break-inside-avoid">
               <h2 className="flex items-baseline justify-between gap-3 border-b border-slate-300 pb-1 font-bold">
                 <span>{section.opening ? section.opening.opening_name : 'Not tied to a door'}</span>
-                {doorsIn(section.opening) === 2 && <span className="text-sm font-normal text-slate-500">2 doors</span>}
+                {doorsIn(section.opening) > 1 && <span className="text-sm font-normal text-slate-500">{doorsIn(section.opening)} doors</span>}
               </h2>
               <ul className="mt-1 divide-y divide-slate-100 text-sm">
                 {section.items.map((item) => (
@@ -148,10 +148,10 @@ export default function InternalBreakdown({ quote, sections, totals, deposit, ba
                   <dt>{section.opening ? 'Opening total' : 'Total'}</dt>
                   <dd className="tabular-nums">{currency(subtotals[i] + laborShares[i])}</dd>
                 </div>
-                {doorsIn(section.opening) === 2 && (
+                {doorsIn(section.opening) > 1 && (
                   <div className="flex justify-between gap-4 text-slate-600">
-                    <dt>Per door (÷ 2)</dt>
-                    <dd className="tabular-nums">{currency((subtotals[i] + laborShares[i]) / 2)}</dd>
+                    <dt>Per door (÷ {doorsIn(section.opening)})</dt>
+                    <dd className="tabular-nums">{currency((subtotals[i] + laborShares[i]) / doorsIn(section.opening))}</dd>
                   </div>
                 )}
               </dl>

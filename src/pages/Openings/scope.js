@@ -2,14 +2,14 @@
 
 /** The four kinds of work most doors get — shown as checkboxes. */
 export function mainScope(openingType) {
-  const double = openingType === 'double_door'
+  const double = openingType === 'double_door' || openingType === 'bifold_door'
   const sweeps = double ? 'door sweeps' : 'door sweep'
   return [
     { label: double ? 'Remove & rehang doors' : 'Remove & rehang door', line: double ? 'Remove and rehang doors' : 'Remove and rehang door' },
     { label: 'Weatherstrip', line: 'Furnish and install weatherstripping' },
     { label: 'Threshold', line: 'Furnish and install threshold' },
     { label: 'Sill cover', line: 'Furnish and install sill cover' },
-    { label: openingType === 'double_door' ? 'Door sweeps' : 'Door sweep', line: `Furnish and install ${sweeps}` },
+    { label: double ? 'Door sweeps' : 'Door sweep', line: `Furnish and install ${sweeps}` },
   ]
 }
 

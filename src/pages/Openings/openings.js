@@ -6,6 +6,7 @@ import { must, useQuery } from '../../lib/useQuery'
 export const OPENING_TYPES = [
   { value: 'single_door', label: 'Single door' },
   { value: 'double_door', label: 'Double door' },
+  { value: 'bifold_door', label: 'Bi-fold' },
   { value: 'window', label: 'Window' },
   { value: 'other', label: 'Other' },
 ]
@@ -28,6 +29,7 @@ export const OPENING_NAME_SUGGESTIONS = [
 /** Best-guess type from a name: pairs / French doors are double, windows are windows. */
 export function guessOpeningType(name) {
   const n = (name || '').toLowerCase()
+  if (/bi-?fold/.test(n)) return 'bifold_door'
   if (/french|pair|double|astragal/.test(n)) return 'double_door'
   if (/window|sidelite|transom/.test(n)) return 'window'
   if (/door|entry|dutch|garage|gate|suite|unit/.test(n)) return 'single_door'
@@ -94,6 +96,7 @@ export async function moveToOpening({ jobId, toOpeningId, measurementIds = [], p
 /** Doors in one opening: a double (French) door is 2, a single door 1, a window 0. */
 export function doorsIn(opening) {
   if (!opening) return 0
+  if (opening.opening_type === 'bifold_door') return Math.max(1, Number(opening.door_count) || 1)
   if (opening.opening_type === 'double_door') return 2
   if (opening.opening_type === 'single_door') return 1
   return 0
@@ -121,4 +124,10 @@ export function formatOpeningCounts(c) {
 export function doorsLabel(opening) {
   const n = doorsIn(opening)
   return n ? plural(n, 'door') : null
+}
+
+/** Panel count from a name like "10-Panel Bi-Fold" or "Bi-Fold Doors (4)", else null. */
+export function panelsFromName(name) {
+  const m = (name || '').match(/(\d+)\s*-?\s*panel/i) || (name || '').match(/\((\d+)\)/)
+  return m ? Number(m[1]) : null
 }

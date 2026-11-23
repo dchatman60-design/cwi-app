@@ -3,7 +3,7 @@ import { Button, ErrorMessage, Field, inputClass, Segmented, Sheet } from '../..
 import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { must } from '../../lib/useQuery'
-import { guessOpeningType, OPENING_TYPES, useOpeningNameSuggestions } from './openings'
+import { guessOpeningType, OPENING_TYPES, panelsFromName, useOpeningNameSuggestions } from './openings'
 
 const MODES = [
   { value: 'list', label: 'Pick names' },
@@ -74,13 +74,17 @@ export default function BulkOpeningsForm({ jobId, existingNames = [], onClose, o
         await supabase
           .from('openings')
           .insert(
-            names.map((opening_name) => ({
-              job_id: jobId,
-              opening_name,
-              opening_type: type === 'auto' ? guessOpeningType(opening_name) || 'single_door' : type,
-              is_fire_rated: fireRated,
-              is_complex: complex,
-            })),
+            names.map((opening_name) => {
+              const opening_type = type === 'auto' ? guessOpeningType(opening_name) || 'single_door' : type
+              return {
+                job_id: jobId,
+                opening_name,
+                opening_type,
+                door_count: opening_type === 'bifold_door' ? panelsFromName(opening_name) : null,
+                is_fire_rated: fireRated,
+                is_complex: complex,
+              }
+            }),
           )
           .select(),
       )

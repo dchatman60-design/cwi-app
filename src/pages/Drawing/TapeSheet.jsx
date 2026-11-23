@@ -69,6 +69,7 @@ export function tapeTemplate(openingType) {
       ],
     }
   }
+  if (openingType === 'bifold_door') return { values: [...doorKeyValues(true), ...DOOR_MORE_VALUES], choices: DOOR_CHOICES }
   if (openingType === 'double_door') {
     return {
       values: [...doorKeyValues(true), ...DOOR_MORE_VALUES, { component: 't_astragal', dimension: 'height', label: 'T-astragal height' }],

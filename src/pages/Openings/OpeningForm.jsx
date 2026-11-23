@@ -13,6 +13,7 @@ export default function OpeningForm({ jobId, opening, onClose, onSaved, onAddSev
     opening_type: opening?.opening_type ?? 'single_door',
     is_fire_rated: opening?.is_fire_rated ?? false,
     is_complex: opening?.is_complex ?? false,
+    door_count: opening?.door_count ?? '',
     notes: opening?.notes ?? '',
   }))
   const [typeTouched, setTypeTouched] = useState(Boolean(opening))
@@ -23,7 +24,14 @@ export default function OpeningForm({ jobId, opening, onClose, onSaved, onAddSev
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.opening_name.trim()) return setError('Give the opening a name — whatever the site contact calls it.')
-    const row = { ...form, opening_name: form.opening_name.trim(), notes: form.notes.trim() || null }
+    const panels = parseInt(form.door_count, 10)
+    if (form.opening_type === 'bifold_door' && !(panels > 0)) return setError('Enter how many panels the bi-fold has.')
+    const row = {
+      ...form,
+      opening_name: form.opening_name.trim(),
+      notes: form.notes.trim() || null,
+      door_count: form.opening_type === 'bifold_door' ? panels : null,
+    }
     setSaving(true)
     setError(null)
     try {
@@ -90,6 +98,18 @@ export default function OpeningForm({ jobId, opening, onClose, onSaved, onAddSev
             }}
           />
         </div>
+        {form.opening_type === 'bifold_door' && (
+          <Field label="Number of panels" hint="Each panel counts as one door.">
+            <input
+              type="number"
+              inputMode="numeric"
+              min="1"
+              className={inputClass}
+              value={form.door_count}
+              onChange={set('door_count')}
+            />
+          </Field>
+        )}
         <label className="flex min-h-11 items-start gap-3 rounded-lg bg-white px-3 py-2 ring-1 ring-slate-200">
           <input
             type="checkbox"

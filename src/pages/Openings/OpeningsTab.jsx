@@ -8,7 +8,7 @@ import { must, useQuery } from '../../lib/useQuery'
 import MoveToOpeningSheet from './MoveToOpeningSheet'
 import BulkOpeningsForm from './BulkOpeningsForm'
 import OpeningForm from './OpeningForm'
-import { countOpenings, doorsLabel, formatOpeningCounts, openingTypeLabel } from './openings'
+import { countOpenings, doorsIn, doorsLabel, formatOpeningCounts, openingTypeLabel } from './openings'
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -102,7 +102,7 @@ export default function OpeningsTab({ job }) {
                       </div>
                       <div className="text-sm text-slate-500">
                         {openingTypeLabel(o.opening_type)}
-                        {doorsLabel(o) && o.opening_type === 'double_door' && ` (${doorsLabel(o)})`}
+                        {doorsIn(o) > 1 && ` (${doorsLabel(o)})`}
                         {counts.data && ` · ${plural(m, 'measurement')} · ${plural(p, 'photo')}`}
                       </div>
                     </Link>
