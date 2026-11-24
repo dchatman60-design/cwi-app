@@ -167,7 +167,7 @@ export async function saveProductDescription(product, { description, notes, user
   )
   let linesUpdated = 0
   if (updateDraftQuotes && patch.description !== product.description) {
-    const drafts = must(await supabase.from('quotes').select('id').eq('status', 'draft'))
+    const drafts = must(await supabase.from('quotes').select('id').in('status', ['draft', 'sent']))
     if (drafts.length) {
       const rows = must(
         await supabase

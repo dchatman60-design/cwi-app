@@ -34,7 +34,7 @@ export default function EditDescriptionSheet({ product, onClose, onSaved }) {
         userId: profile?.id,
         updateDraftQuotes: updateDrafts,
       })
-      toast(linesUpdated ? `Description saved · updated on ${linesUpdated} draft quote line${linesUpdated === 1 ? '' : 's'}` : 'Description saved')
+      toast(linesUpdated ? `Description saved · updated on ${linesUpdated} quote line${linesUpdated === 1 ? '' : 's'}` : 'Description saved')
       onSaved?.(saved)
       onClose()
     } catch (err) {
@@ -96,7 +96,7 @@ export default function EditDescriptionSheet({ product, onClose, onSaved }) {
             checked={updateDrafts}
             onChange={(e) => setUpdateDrafts(e.target.checked)}
           />
-          <span>Also update this part on draft quotes</span>
+          <span>Also update this part on open quotes (draft or sent)</span>
         </label>
         <ErrorMessage error={error} />
       </div>
