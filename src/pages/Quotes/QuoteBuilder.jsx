@@ -13,6 +13,7 @@ import MoveToOpeningSheet from '../Openings/MoveToOpeningSheet'
 import { countOpenings, doorsIn, openingTypeLabel } from '../Openings/openings'
 import AddProductSheet from './AddProductSheet'
 import ProposalView from './ProposalView'
+import { OptionsCard, ParentPicker } from './QuoteOptions'
 import QuoteItemRow from './QuoteItemRow'
 import {
   addQuoteItem,
@@ -427,6 +428,7 @@ export default function QuoteBuilder() {
               </span>
             </span>
           </label>
+          {quote.items_only && <ParentPicker quote={quote} onChange={(parent_quote_id) => updateQuote({ parent_quote_id })} />}
           <label className="flex min-h-11 items-start gap-3">
             <input
               type="checkbox"
@@ -515,6 +517,8 @@ export default function QuoteBuilder() {
             )}
           </dl>
         </Card>
+
+        {!quote.items_only && <OptionsCard quote={quote} />}
 
         <Button variant="dangerOutline" className="mt-8 w-full" onClick={deleteQuote} disabled={deleting}>
           {deleting ? 'Deleting…' : 'Delete quote'}

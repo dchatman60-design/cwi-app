@@ -96,6 +96,7 @@ export async function findCurrentQuote(jobId) {
       .from('quotes')
       .select('*')
       .eq('job_id', jobId)
+      .eq('items_only', false)
       .neq('status', 'declined')
       .order('updated_at', { ascending: false })
       .limit(1)

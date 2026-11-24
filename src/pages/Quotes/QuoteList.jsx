@@ -68,7 +68,12 @@ export default function QuoteList() {
   const { data, error, loading } = useQuery('quotes', async () =>
     must(await supabase.from('quotes').select(QUOTE_LIST_SELECT).order('updated_at', { ascending: false })),
   )
-  const quotes = (data || []).filter((q) => status === 'all' || q.status === status)
+  const filtered = (data || []).filter((q) => status === 'all' || q.status === status)
+  // Options sit right under their main quote
+  const quotes = filtered
+    .filter((q) => !q.parent_quote_id || !filtered.some((p) => p.id === q.parent_quote_id))
+    .flatMap((q) => [q, ...filtered.filter((o) => o.parent_quote_id === q.id)])
+  const parentOf = (q) => (data || []).find((p) => p.id === q.parent_quote_id)
 
   return (
     <div>
@@ -101,9 +106,16 @@ export default function QuoteList() {
         {quotes.length > 0 && (
           <Card className="divide-y divide-slate-100">
             {quotes.map((q) => (
-              <Link key={q.id} to={`/quotes/${q.id}`} className="flex min-h-16 items-center gap-3 px-4 py-3">
+              <Link
+                key={q.id}
+                to={`/quotes/${q.id}`}
+                className={`flex min-h-16 items-center gap-3 py-3 pr-4 ${q.parent_quote_id && quotes.some((p) => p.id === q.parent_quote_id) ? 'border-l-4 border-l-blue-200 pl-6' : 'pl-4'}`}
+              >
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold break-words">{quoteTitle(q)}</div>
+                  {q.parent_quote_id && parentOf(q) && (
+                    <div className="text-xs text-blue-700">Option for {quoteTitle(parentOf(q))}</div>
+                  )}
                   <div className="text-sm break-words text-slate-500">
                     {q.items.length} item{q.items.length === 1 ? '' : 's'} · {formatDateTime(q.updated_at || q.created_at)}
                   </div>

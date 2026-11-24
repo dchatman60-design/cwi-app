@@ -10,8 +10,9 @@ import { toast } from '../../lib/toast'
 import { countOpenings, doorsIn } from '../Openings/openings'
 import { groupByScope, scopeLines } from '../Openings/scope'
 import CutSheet, { describeMaterial } from './CutSheet'
+import { useQuoteOptions } from './QuoteOptions'
 import InternalBreakdown from './InternalBreakdown'
-import { isService, quoteTitle, SERVICE_UNITS } from './quotes'
+import { isService, quoteTitle, quoteTotals, SERVICE_UNITS } from './quotes'
 
 function qtyLabel(item) {
   const qty = trimNumber(item.quantity)
@@ -65,6 +66,7 @@ const VIEWS = [
 
 export default function ProposalView({ quote, sections, totals, diagramsByOpening, onBack }) {
   const [view, setView] = useState('customer')
+  const { data: options } = useQuoteOptions(quote.items_only ? null : quote.id)
   const docRef = useRef(null)
   // iPhone home-screen app can't print: build the PDF, then a second tap opens the share sheet
   const [pdf, setPdf] = useState({ status: 'idle', blob: null, view: null })
@@ -339,6 +341,19 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
         )}
 
         <div className="mt-8 text-lg font-bold print:mt-4">Total Job: {currency(totals.total)}</div>
+        {options?.length > 0 && (
+          <div className="mt-3 break-inside-avoid">
+            <div className="font-semibold">Optional add-ons (priced separately, not included above):</div>
+            <ul className="mt-1 space-y-0.5">
+              {options.map((o) => (
+                <li key={o.id} className="flex justify-between gap-4 pl-4">
+                  <span className="break-words">{quoteTitle(o).replace(/^.*— Option:\s*/, '')}</span>
+                  <span className="shrink-0 tabular-nums">{currency(quoteTotals(o, o.items).total)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {quote.total_note && (
           <p className="mt-1 max-w-2xl text-sm whitespace-pre-line text-slate-700 print:text-[13px]">{quote.total_note}</p>
         )}
