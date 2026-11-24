@@ -91,6 +91,8 @@ export default function QuoteList() {
           ))}
         </select>
 
+        {data && <PipelineSummary quotes={data} status={status} onPick={setStatus} />}
+
         <ErrorMessage error={error} />
         {loading && !data && <Spinner />}
         {data && quotes.length === 0 && (
@@ -108,6 +110,7 @@ export default function QuoteList() {
                 </div>
                 <div className="shrink-0 text-right">
                   <div className="font-bold">{currency(quoteTotals(q, q.items).total)}</div>
+                  {q.items_only && <div className="text-xs text-slate-500">Option</div>}
                   <Badge>{QUOTE_STATUSES.find((s) => s.value === q.status)?.label || q.status}</Badge>
                 </div>
               </Link>
@@ -118,5 +121,51 @@ export default function QuoteList() {
 
       {creating && <NewQuoteSheet onClose={() => setCreating(false)} />}
     </div>
+  )
+}
+
+/**
+ * Pipeline: the dollar value of proposals that are out (status Sent), with
+ * option / add-on quotes counted separately so they don't inflate the total.
+ * Tapping a figure filters the list to those quotes.
+ */
+function PipelineSummary({ quotes, status, onPick }) {
+  const sum = (list) => list.reduce((t, q) => t + quoteTotals(q, q.items).total, 0)
+  const by = (s) => quotes.filter((q) => q.status === s)
+  const sent = by('sent')
+  const sentMain = sent.filter((q) => !q.items_only)
+  const sentOptions = sent.filter((q) => q.items_only)
+  const drafts = by('draft').filter((q) => !q.items_only)
+  const accepted = by('accepted').filter((q) => !q.items_only)
+  const plural = (n) => `${n} proposal${n === 1 ? '' : 's'}`
+
+  return (
+    <Card className="p-4">
+      <button
+        type="button"
+        onClick={() => onPick(status === 'sent' ? 'all' : 'sent')}
+        className="block w-full text-left"
+        aria-pressed={status === 'sent'}
+      >
+        <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Pipeline · proposals sent</div>
+        <div className="mt-1 text-3xl font-bold tabular-nums">{currency(sum(sentMain))}</div>
+        <div className="text-sm text-slate-600">
+          {plural(sentMain.length)} out
+          {sentOptions.length > 0 && ` · + ${currency(sum(sentOptions))} in options`}
+        </div>
+      </button>
+      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-sm">
+        <button type="button" onClick={() => onPick(status === 'draft' ? 'all' : 'draft')} className="text-left">
+          <div className="text-xs text-slate-500">Drafts</div>
+          <div className="font-semibold tabular-nums">{currency(sum(drafts))}</div>
+          <div className="text-xs text-slate-500">{plural(drafts.length)}</div>
+        </button>
+        <button type="button" onClick={() => onPick(status === 'accepted' ? 'all' : 'accepted')} className="text-left">
+          <div className="text-xs text-slate-500">Accepted</div>
+          <div className="font-semibold tabular-nums">{currency(sum(accepted))}</div>
+          <div className="text-xs text-slate-500">{plural(accepted.length)}</div>
+        </button>
+      </div>
+    </Card>
   )
 }
