@@ -125,46 +125,53 @@ export default function QuoteList() {
 }
 
 /**
- * Pipeline: the dollar value of proposals that are out (status Sent), with
- * option / add-on quotes counted separately so they don't inflate the total.
- * Tapping a figure filters the list to those quotes.
+ * Pipeline totals by status — Sent, Draft and Accepted — each with its count.
+ * Option / add-on quotes are shown on their own line under each total so they
+ * don't inflate it. Tapping a tile filters the list to that status.
  */
 function PipelineSummary({ quotes, status, onPick }) {
   const sum = (list) => list.reduce((t, q) => t + quoteTotals(q, q.items).total, 0)
-  const by = (s) => quotes.filter((q) => q.status === s)
-  const sent = by('sent')
-  const sentMain = sent.filter((q) => !q.items_only)
-  const sentOptions = sent.filter((q) => q.items_only)
-  const drafts = by('draft').filter((q) => !q.items_only)
-  const accepted = by('accepted').filter((q) => !q.items_only)
-  const plural = (n) => `${n} proposal${n === 1 ? '' : 's'}`
+  const tiles = [
+    { value: 'sent', label: 'Sent', hint: 'Proposals out' },
+    { value: 'draft', label: 'Draft', hint: 'Being prepared' },
+    { value: 'accepted', label: 'Accepted', hint: 'Won' },
+  ].map((t) => {
+    const list = quotes.filter((q) => q.status === t.value)
+    const main = list.filter((q) => !q.items_only)
+    const options = list.filter((q) => q.items_only)
+    return { ...t, total: sum(main), count: main.length, optionTotal: sum(options), optionCount: options.length }
+  })
+  const open = tiles.filter((t) => t.value !== 'accepted')
 
   return (
-    <Card className="p-4">
-      <button
-        type="button"
-        onClick={() => onPick(status === 'sent' ? 'all' : 'sent')}
-        className="block w-full text-left"
-        aria-pressed={status === 'sent'}
-      >
-        <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Pipeline · proposals sent</div>
-        <div className="mt-1 text-3xl font-bold tabular-nums">{currency(sum(sentMain))}</div>
-        <div className="text-sm text-slate-600">
-          {plural(sentMain.length)} out
-          {sentOptions.length > 0 && ` · + ${currency(sum(sentOptions))} in options`}
-        </div>
-      </button>
-      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-sm">
-        <button type="button" onClick={() => onPick(status === 'draft' ? 'all' : 'draft')} className="text-left">
-          <div className="text-xs text-slate-500">Drafts</div>
-          <div className="font-semibold tabular-nums">{currency(sum(drafts))}</div>
-          <div className="text-xs text-slate-500">{plural(drafts.length)}</div>
-        </button>
-        <button type="button" onClick={() => onPick(status === 'accepted' ? 'all' : 'accepted')} className="text-left">
-          <div className="text-xs text-slate-500">Accepted</div>
-          <div className="font-semibold tabular-nums">{currency(sum(accepted))}</div>
-          <div className="text-xs text-slate-500">{plural(accepted.length)}</div>
-        </button>
+    <Card className="p-3">
+      <div className="mb-2 flex items-baseline justify-between px-1">
+        <span className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Pipeline</span>
+        <span className="text-xs text-slate-500">
+          Sent + draft: <span className="font-semibold text-slate-800">{currency(open.reduce((t, x) => t + x.total, 0))}</span>
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {tiles.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => onPick(status === t.value ? 'all' : t.value)}
+            aria-pressed={status === t.value}
+            className={`min-w-0 rounded-lg p-2.5 text-left ring-1 ${
+              status === t.value ? 'bg-blue-50 ring-blue-300' : 'bg-slate-50 ring-slate-200'
+            }`}
+          >
+            <div className="text-xs font-semibold text-slate-600">{t.label}</div>
+            <div className="mt-0.5 text-lg leading-tight font-bold break-words tabular-nums">{currency(t.total)}</div>
+            <div className="text-xs text-slate-500">
+              {t.count} proposal{t.count === 1 ? '' : 's'}
+            </div>
+            {t.optionCount > 0 && (
+              <div className="mt-1 text-xs text-slate-500">+ {currency(t.optionTotal)} options</div>
+            )}
+          </button>
+        ))}
       </div>
     </Card>
   )
