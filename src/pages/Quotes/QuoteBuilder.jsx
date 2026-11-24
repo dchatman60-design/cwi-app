@@ -407,7 +407,7 @@ export default function QuoteBuilder() {
             <span>
               <span className="font-medium">Show details on the proposal</span>
               <span className="block text-xs text-slate-500">
-                Off: one price per door, like the printed proposal. On: also lists the Pemko products, quantities and
+                Off: one price per door, like the printed proposal. On: also lists the products (plain description and finish — no brand or part numbers), quantities and
                 diagrams under each door (never the markup).
               </span>
             </span>

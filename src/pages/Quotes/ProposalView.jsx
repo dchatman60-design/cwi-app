@@ -7,10 +7,9 @@ import { COMPANY, DEFAULT_SCOPE_INTRO, DEFAULT_UNWORKED_NOTE } from '../../lib/c
 import { currency, parseLocalDate, trimNumber } from '../../lib/format'
 import { elementToPdf, printUnsupported, sharePdf } from '../../lib/pdf'
 import { toast } from '../../lib/toast'
-import { hasRealDescription } from '../Search/catalog'
 import { countOpenings, doorsIn } from '../Openings/openings'
 import { groupByScope, scopeLines } from '../Openings/scope'
-import CutSheet from './CutSheet'
+import CutSheet, { describeMaterial } from './CutSheet'
 import InternalBreakdown from './InternalBreakdown'
 import { isService, quoteTitle, SERVICE_UNITS } from './quotes'
 
@@ -35,6 +34,12 @@ function addressLines(address) {
     else out.push(line)
   }
   return out
+}
+
+/** A product as the customer sees it: plain description and finish — never the brand or part number. */
+function materialText(item) {
+  const { material, finish } = describeMaterial(item)
+  return [material || 'Weatherstripping material', finish].filter(Boolean).join(', ')
 }
 
 function formatDate(iso) {
@@ -101,7 +106,7 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
   const fallbackScope = (items) => [
     ...new Set(
       items.map((item) =>
-        isService(item) ? item.description : `Furnish and install ${hasRealDescription(item) ? item.description : `Pemko ${item.sku}`}`,
+        isService(item) ? item.description : `Furnish and install ${materialText(item).toLowerCase()}`,
       ),
     ),
   ]
@@ -257,7 +262,7 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
                             {d.section.items.map((item) => (
                               <li key={item.id} className="break-words">
                                 {qtyLabel(item) && <span className="mr-1">{qtyLabel(item)} ×</span>}
-                                {isService(item) ? item.description : `Pemko ${item.sku}${hasRealDescription(item) ? ` — ${item.description}` : ''}`}
+                                {isService(item) ? item.description : materialText(item)}
                               </li>
                             ))}
                           </ul>
