@@ -5,7 +5,8 @@ import { hasValue, partLabel } from '../Drawing/measurementParts'
 import { countOpenings, doorsIn, openingTypeLabel } from '../Openings/openings'
 import { scopeLines } from '../Openings/scope'
 import { hasRealDescription } from '../Search/catalog'
-import { isService } from './quotes'
+import { useState } from 'react'
+import { isService, linesSubtotal } from './quotes'
 
 // Finish words pulled out of a catalog description into their own column
 const FINISH_RE =
@@ -64,6 +65,28 @@ export default function CutSheet({ quote, sections, totals, toName, toCompany, r
   const worked = sections.filter((s) => s.opening && (s.items.length || (s.opening.scope_items || []).length))
   const general = sections.find((s) => !s.opening)
   const counts = countOpenings(worked.map((s) => s.opening))
+  const [showPrices, setShowPrices] = useState(true)
+
+  // Price per door: its lines with markup plus its share of install labor (in
+  // proportion to its lines), so the door prices add up exactly to Total Job.
+  const priced = [...worked, ...(general && general.items.length ? [general] : [])]
+  const subs = priced.map((s) => linesSubtotal(quote, s.items))
+  const base = subs.reduce((a, b) => a + b, 0)
+  const labor = Number(totals.labor || 0)
+  const prices = new Map()
+  let given = 0
+  const lastWithLines = subs.reduce((last, v, i) => (v > 0 ? i : last), -1)
+  priced.forEach((s, i) => {
+    let share = 0
+    if (labor && base > 0 && subs[i] > 0) {
+      share = i === lastWithLines ? Math.round((labor - given) * 100) / 100 : Math.round(((labor * subs[i]) / base) * 100) / 100
+      given += share
+    }
+    prices.set(s.key, Math.round((subs[i] + share) * 100) / 100)
+  })
+  // If nothing has lines, the labor has nowhere to go — say so rather than show $0 doors
+  const pricesComplete = !labor || base > 0
+
   const missing = new Set()
   for (const s of sections) for (const r of materialRows(s.items)) if (!r.material) missing.add(r.sku)
 
@@ -76,13 +99,23 @@ export default function CutSheet({ quote, sections, totals, toName, toCompany, r
     return (
       <section key={sec.key} className="break-inside-avoid border-t border-slate-300 pt-3">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4">
-          <h3 className="font-bold">{o ? o.opening_name : 'General'}</h3>
-          {o && (
-            <span className="text-sm text-slate-600">
-              {openingTypeLabel(o.opening_type)}
-              {n > 1 && ` · ${n} doors`}
-              {o.finish && ` · ${o.finish} finish`}
-            </span>
+          <div className="min-w-0">
+            <h3 className="font-bold">{o ? o.opening_name : 'General'}</h3>
+            {o && (
+              <div className="text-sm text-slate-600">
+                {openingTypeLabel(o.opening_type)}
+                {n > 1 && ` · ${n} doors`}
+                {o.finish && ` · ${o.finish} finish`}
+              </div>
+            )}
+          </div>
+          {showPrices && pricesComplete && (
+            <div className="text-right">
+              <div className="font-bold tabular-nums">{prices.get(sec.key) ? currency(prices.get(sec.key)) : 'Included'}</div>
+              {n > 1 && (prices.get(sec.key) || 0) > 0 && (
+                <div className="text-xs text-slate-600 tabular-nums">{currency((prices.get(sec.key) || 0) / n)} per door</div>
+              )}
+            </div>
           )}
         </div>
         <Measurements list={sec.measurements} />
@@ -128,6 +161,20 @@ export default function CutSheet({ quote, sections, totals, toName, toCompany, r
 
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-5 text-slate-900 sm:p-8 print:border-0 print:p-0 print:text-[13px]">
+      <label className="mb-4 flex min-h-11 items-center gap-3 print:hidden">
+        <input type="checkbox" className="size-5 accent-blue-700" checked={showPrices} onChange={(e) => setShowPrices(e.target.checked)} />
+        <span>
+          <span className="font-medium">Show price per door</span>
+          <span className="block text-xs text-slate-500">
+            Each door's materials, markup and its share of labor in one price. They add up to Total Job.
+          </span>
+        </span>
+      </label>
+      {showPrices && !pricesComplete && (
+        <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200 print:hidden">
+          No door has priced lines yet, so labor can't be split across doors. Add products or labor lines to the doors.
+        </div>
+      )}
       {missing.size > 0 && (
         <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200 print:hidden">
           {missing.size === 1 ? 'One part has' : `${missing.size} parts have`} no description yet ({[...missing].join(', ')}), so{' '}
@@ -181,8 +228,10 @@ export default function CutSheet({ quote, sections, totals, toName, toCompany, r
       <div className="mt-6 border-t-2 border-slate-900 pt-3 print:mt-4">
         <div className="text-lg font-bold">Total Job: {currency(totals.total)}</div>
         <p className="mt-1 text-sm text-slate-600">
-          Materials, installation and labor are included in the Total Job. Quantities are field measured and may be
-          adjusted on site to fit.
+          {showPrices && pricesComplete
+            ? 'Each door price includes its materials, installation and labor; together they make up the Total Job.'
+            : 'Materials, installation and labor are included in the Total Job.'}{' '}
+          Quantities are field measured and may be adjusted on site to fit.
         </p>
         {quote.total_note && <p className="mt-1 text-sm whitespace-pre-line text-slate-700">{quote.total_note}</p>}
       </div>
