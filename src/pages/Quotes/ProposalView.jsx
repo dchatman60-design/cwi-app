@@ -1,10 +1,12 @@
 import { BackIcon, PrintIcon } from '../../components/icons'
 import { LogoMark } from '../../components/Logo'
 import SignedImage from '../../components/SignedImage'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button, Segmented } from '../../components/ui'
 import { COMPANY, DEFAULT_SCOPE_INTRO, DEFAULT_UNWORKED_NOTE } from '../../lib/company'
 import { currency, parseLocalDate, trimNumber } from '../../lib/format'
+import { elementToPdf, printUnsupported, sharePdf } from '../../lib/pdf'
+import { toast } from '../../lib/toast'
 import { hasRealDescription } from '../Search/catalog'
 import { countOpenings, doorsIn } from '../Openings/openings'
 import { groupByScope, scopeLines } from '../Openings/scope'
@@ -58,6 +60,33 @@ const VIEWS = [
 
 export default function ProposalView({ quote, sections, totals, diagramsByOpening, onBack }) {
   const [view, setView] = useState('customer')
+  const docRef = useRef(null)
+  // iPhone home-screen app can't print: build the PDF, then a second tap opens the share sheet
+  const [pdf, setPdf] = useState({ status: 'idle', blob: null, view: null })
+  const pdfName = `${quoteTitle(quote).replace(/[\\/:*?"<>|]+/g, '-')} - ${VIEWS.find((v) => v.value === view)?.label}.pdf`
+  const ready = pdf.status === 'ready' && pdf.view === view
+
+  async function handlePrint() {
+    if (!printUnsupported()) return window.print()
+    if (ready) return sharePdf(pdf.blob, pdfName)
+    const el = docRef.current?.querySelector('article')
+    if (!el) return
+    setPdf({ status: 'building', blob: null, view })
+    try {
+      const blob = await elementToPdf(el)
+      setPdf({ status: 'ready', blob, view })
+    } catch (err) {
+      setPdf({ status: 'idle', blob: null, view: null })
+      toast(err.message || "Couldn't make the PDF", 'error')
+    }
+  }
+  const printLabel = !printUnsupported()
+    ? 'Print / Save PDF'
+    : pdf.status === 'building'
+      ? 'Making PDF…'
+      : ready
+        ? 'Share / save PDF'
+        : 'Make PDF'
   const client = quote.job?.client
   const toName = client?.contact_name || client?.client_name || ''
   const toCompany = client?.contact_name && client.contact_name !== client.client_name ? client.client_name : null
@@ -126,14 +155,15 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
         <Button variant="secondary" onClick={onBack}>
           <BackIcon className="size-5" /> Edit quote
         </Button>
-        <Button className="flex-1" onClick={() => window.print()}>
-          <PrintIcon className="size-5" /> Print / Save PDF
+        <Button className="flex-1" onClick={handlePrint} disabled={pdf.status === 'building'}>
+          <PrintIcon className="size-5" /> {printLabel}
         </Button>
       </div>
       <div className="mb-4 print:hidden">
         <Segmented options={VIEWS} value={view} onChange={setView} />
       </div>
 
+      <div ref={docRef}>
       {view === 'cutsheet' ? (
         <CutSheet quote={quote} sections={sections} totals={totals} toName={toName} toCompany={toCompany} re={re} date={date} />
       ) : view === 'internal' ? (
@@ -365,6 +395,7 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
         </footer>
       </article>
       )}
+      </div>
     </div>
   )
 }
