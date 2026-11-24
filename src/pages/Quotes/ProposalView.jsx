@@ -110,10 +110,16 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
       ),
     ),
   ]
-  const doorSections = sections.filter((sec) => sec.opening && (sec.items.length || (sec.opening.scope_items || []).length))
+  // Option / add-on quotes: only the doors with lines here, described by those lines
+  const itemsOnly = Boolean(quote.items_only)
+  const doorSections = sections.filter(
+    (sec) => sec.opening && (sec.items.length || (!itemsOnly && (sec.opening.scope_items || []).length)),
+  )
   const doors = doorSections.map((sec) => ({
     ...sec.opening,
-    scope_items: (sec.opening.scope_items || []).length ? sec.opening.scope_items : fallbackScope(sec.items),
+    finish: itemsOnly ? null : sec.opening.finish,
+    scope_items:
+      !itemsOnly && (sec.opening.scope_items || []).length ? sec.opening.scope_items : fallbackScope(sec.items),
     section: sec,
   }))
   // With details on, every door is listed on its own with its products

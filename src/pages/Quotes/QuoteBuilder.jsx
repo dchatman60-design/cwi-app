@@ -416,6 +416,21 @@ export default function QuoteBuilder() {
             <input
               type="checkbox"
               className="mt-1 size-5 accent-blue-700"
+              checked={Boolean(quote.items_only)}
+              onChange={(e) => updateQuote({ items_only: e.target.checked })}
+            />
+            <span>
+              <span className="font-medium">Option / add-on quote</span>
+              <span className="block text-xs text-slate-500">
+                Lists only the doors that have lines on this quote, described by those lines, not the doors&apos; full
+                scope. Use it for an option priced separately from the main proposal.
+              </span>
+            </span>
+          </label>
+          <label className="flex min-h-11 items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1 size-5 accent-blue-700"
               checked={Boolean(quote.show_unworked)}
               onChange={(e) => updateQuote({ show_unworked: e.target.checked })}
             />

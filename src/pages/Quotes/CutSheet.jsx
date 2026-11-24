@@ -81,7 +81,9 @@ function Measurements({ list }) {
  * numbers, unit prices, markup or labor — just the one Total Job.
  */
 export default function CutSheet({ quote, sections, totals, toName, toCompany, re, date }) {
-  const worked = sections.filter((s) => s.opening && (s.items.length || (s.opening.scope_items || []).length))
+  const worked = sections.filter(
+    (s) => s.opening && (s.items.length || (!quote.items_only && (s.opening.scope_items || []).length)),
+  )
   const general = sections.find((s) => !s.opening)
   const counts = countOpenings(worked.map((s) => s.opening))
   const [showPrices, setShowPrices] = useState(true)
@@ -118,7 +120,7 @@ export default function CutSheet({ quote, sections, totals, toName, toCompany, r
     const o = sec.opening
     const rows = materialRows(sec.items)
     const services = sec.items.filter(isService).map((i) => i.description)
-    const lines = o ? scopeLines(o) : []
+    const lines = o && !quote.items_only ? scopeLines(o) : []
     const n = o ? doorsIn(o) : 0
     return (
       <section key={sec.key} className="break-inside-avoid border-t border-slate-300 pt-3">
