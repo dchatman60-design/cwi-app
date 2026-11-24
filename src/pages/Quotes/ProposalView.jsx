@@ -8,6 +8,7 @@ import { currency, parseLocalDate, trimNumber } from '../../lib/format'
 import { hasRealDescription } from '../Search/catalog'
 import { countOpenings, doorsIn } from '../Openings/openings'
 import { groupByScope, scopeLines } from '../Openings/scope'
+import CutSheet from './CutSheet'
 import InternalBreakdown from './InternalBreakdown'
 import { isService, quoteTitle, SERVICE_UNITS } from './quotes'
 
@@ -51,6 +52,7 @@ function formatDate(iso) {
  */
 const VIEWS = [
   { value: 'customer', label: 'Customer proposal' },
+  { value: 'cutsheet', label: 'Cut sheet' },
   { value: 'internal', label: 'Internal breakdown' },
 ]
 
@@ -132,7 +134,9 @@ export default function ProposalView({ quote, sections, totals, diagramsByOpenin
         <Segmented options={VIEWS} value={view} onChange={setView} />
       </div>
 
-      {view === 'internal' ? (
+      {view === 'cutsheet' ? (
+        <CutSheet quote={quote} sections={sections} totals={totals} toName={toName} toCompany={toCompany} re={re} date={date} />
+      ) : view === 'internal' ? (
         <InternalBreakdown quote={quote} sections={sections} totals={totals} deposit={deposit} balance={balance} />
       ) : (
 
