@@ -6,7 +6,7 @@ import { countOpenings, doorsIn, openingTypeLabel } from '../Openings/openings'
 import { scopeLines } from '../Openings/scope'
 import { hasRealDescription } from '../Search/catalog'
 import { useState } from 'react'
-import { isService, linesSubtotal } from './quotes'
+import { isService, linesSubtotal, quoteTotals } from './quotes'
 
 // Finish words pulled out of a catalog description into their own column
 const FINISH_RE =
@@ -42,6 +42,25 @@ function materialRows(items) {
     else rows.set(key, { ...describeMaterial(item), sku: item.sku, uom: item.uom || 'ea', quantity: Number(item.quantity || 0) })
   }
   return [...rows.values()]
+}
+
+/** Materials / labor / total for one door (per door too, for pairs and bi-folds). */
+function PriceBox({ p, n }) {
+  if (!p || !p.total) return <div className="font-bold">Included</div>
+  const row = (label, v, strong) => (
+    <div className={`flex justify-between gap-4 tabular-nums ${strong ? 'font-bold' : 'text-slate-700'}`}>
+      <span>{label}</span>
+      <span>{currency(v)}</span>
+    </div>
+  )
+  return (
+    <div className="w-52 text-sm">
+      {row('Materials', p.materials)}
+      {row('Labor', p.labor)}
+      <div className="mt-0.5 border-t border-slate-300 pt-0.5">{row(n > 1 ? `Total (${n} doors)` : 'Total', p.total, true)}</div>
+      {n > 1 && <div className="text-right text-xs text-slate-600 tabular-nums">{currency(p.total / n)} per door</div>}
+    </div>
+  )
 }
 
 function Measurements({ list }) {
@@ -82,8 +101,13 @@ export default function CutSheet({ quote, sections, totals, toName, toCompany, r
       share = i === lastWithLines ? Math.round((labor - given) * 100) / 100 : Math.round(((labor * subs[i]) / base) * 100) / 100
       given += share
     }
-    prices.set(s.key, Math.round((subs[i] + share) * 100) / 100)
+    const t = quoteTotals(quote, s.items)
+    const materials = Math.round(t.materialWithMarkup * 100) / 100
+    const total = Math.round((subs[i] + share) * 100) / 100
+    // Labor = the door's labor/service lines plus its share of install days
+    prices.set(s.key, { materials, labor: Math.round((total - materials) * 100) / 100, total })
   })
+  const sum = (k) => Math.round([...prices.values()].reduce((a, p) => a + p[k], 0) * 100) / 100
   // If nothing has lines, the labor has nowhere to go — say so rather than show $0 doors
   const pricesComplete = !labor || base > 0
 
@@ -109,14 +133,7 @@ export default function CutSheet({ quote, sections, totals, toName, toCompany, r
               </div>
             )}
           </div>
-          {showPrices && pricesComplete && (
-            <div className="text-right">
-              <div className="font-bold tabular-nums">{prices.get(sec.key) ? currency(prices.get(sec.key)) : 'Included'}</div>
-              {n > 1 && (prices.get(sec.key) || 0) > 0 && (
-                <div className="text-xs text-slate-600 tabular-nums">{currency((prices.get(sec.key) || 0) / n)} per door</div>
-              )}
-            </div>
-          )}
+          {showPrices && pricesComplete && <PriceBox p={prices.get(sec.key)} n={n} />}
         </div>
         <Measurements list={sec.measurements} />
         {(lines.length > 0 || services.length > 0) && (
@@ -166,7 +183,7 @@ export default function CutSheet({ quote, sections, totals, toName, toCompany, r
         <span>
           <span className="font-medium">Show price per door</span>
           <span className="block text-xs text-slate-500">
-            Each door's materials, markup and its share of labor in one price. They add up to Total Job.
+            Materials and labor for each door, with the door total. They add up to Total Job.
           </span>
         </span>
       </label>
@@ -226,10 +243,22 @@ export default function CutSheet({ quote, sections, totals, toName, toCompany, r
       </div>
 
       <div className="mt-6 border-t-2 border-slate-900 pt-3 print:mt-4">
+        {showPrices && pricesComplete && (
+          <div className="mb-1 max-w-xs text-sm">
+            <div className="flex justify-between tabular-nums">
+              <span>Materials</span>
+              <span>{currency(sum('materials'))}</span>
+            </div>
+            <div className="flex justify-between tabular-nums">
+              <span>Labor</span>
+              <span>{currency(sum('labor'))}</span>
+            </div>
+          </div>
+        )}
         <div className="text-lg font-bold">Total Job: {currency(totals.total)}</div>
         <p className="mt-1 text-sm text-slate-600">
           {showPrices && pricesComplete
-            ? 'Each door price includes its materials, installation and labor; together they make up the Total Job.'
+            ? 'Door totals include materials and labor; together they make up the Total Job.'
             : 'Materials, installation and labor are included in the Total Job.'}{' '}
           Quantities are field measured and may be adjusted on site to fit.
         </p>
